@@ -17,6 +17,8 @@ captures/
 .cxx/
 *.apk
 *.aab
+# Ausnahme: die fertigen APKs zum Installieren gehören ins Repo (wie bei WorkTracker).
+!dist/*.apk
 *.ap_
 *.dex
 .kotlin/

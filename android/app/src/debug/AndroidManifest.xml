@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nur für den Debug-Build: erlaubt unverschlüsselte Verbindungen zum Container im LAN
+  (http://192.168.0.161:3005). Android blockt Klartext seit API 28 sonst stillschweigend.
+  Der Release-Build spricht ausschließlich https://app.otakupulse.de und bleibt davon unberührt.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="true"
+        tools:targetApi="28" />
+</manifest>
