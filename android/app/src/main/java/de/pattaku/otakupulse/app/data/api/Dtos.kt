@@ -117,3 +117,40 @@ data class UpdateDeviceResponse(val deviceId: Int, val displayName: String)
 
 @Serializable
 data class RenamePartyRequest(val name: String)
+
+@Serializable
+data class TagRankDto(val name: String, val category: String? = null, val rank: Int? = null)
+
+@Serializable
+data class StudioDto(val name: String, val isAnimation: Boolean = false)
+
+@Serializable
+data class LinkDto(val platform: String? = null, val url: String? = null)
+
+@Serializable
+data class RelatedDto(val id: Int, val title: String, val coverImageUrl: String? = null, val relation: String)
+
+@Serializable
+data class AnimeDetailDto(
+    val id: Int,
+    val slug: String,
+    val title: String,
+    val titleRomaji: String,
+    val description: String? = null,
+    val coverImageUrl: String? = null,
+    val bannerImageUrl: String? = null,
+    val format: String? = null,
+    val status: String? = null,
+    val episodes: Int? = null,
+    val duration: Int? = null,
+    val season: String? = null,
+    val seasonYear: Int? = null,
+    val averageScore: Int? = null,
+    val genres: List<String> = emptyList(),
+    val tags: List<TagRankDto> = emptyList(),
+    val studios: List<StudioDto> = emptyList(),
+    val languages: List<String> = emptyList(),
+    val providers: List<String> = emptyList(),
+    val links: List<LinkDto> = emptyList(),
+    val related: List<RelatedDto> = emptyList(),
+)

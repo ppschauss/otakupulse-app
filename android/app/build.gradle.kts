@@ -19,7 +19,9 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Backend-Adresse. Öffentlich erreichbar, damit die App ohne VPN funktioniert.
+        // Einzige Adresse: öffentlich über den Cloudflare-Tunnel, verschlüsselt,
+        // von überall erreichbar. Kein LAN-Sonderfall mehr — der brachte nur eine
+        // Einstellung, die man falsch stellen konnte.
         buildConfigField("String", "API_BASE_URL", "\"https://app.otakupulse.de/\"")
     }
 
@@ -33,10 +35,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            // Im Debug-Build direkt auf den Container im LAN, ohne Umweg über Cloudflare.
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.161:3005/\"")
-        }
         release {
             isMinifyEnabled = false
             proguardFiles(

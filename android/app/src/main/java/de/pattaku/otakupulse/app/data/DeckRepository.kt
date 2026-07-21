@@ -26,7 +26,7 @@ class DeckRepository(
     }
 
     /** Einzelner Titel für die Detailansicht aus Watchlist oder Meldung heraus. */
-    suspend fun detail(animeId: Int): Anime = api.anime(animeId).toDomain()
+    suspend fun detail(animeId: Int) = api.anime(animeId)
 
     suspend fun loadPage(filter: DeckFilter, seed: String, offset: Int, limit: Int = 20): List<Anime> =
         api.deck(

@@ -15,7 +15,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -38,7 +40,9 @@ private val MODI = listOf(
 fun EinstellungenScreen(
     modus: ThemeModus,
     onModus: (ThemeModus) -> Unit,
-    serverViewModel: ServerViewModel,
+    sicherungsMeldung: String?,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
@@ -88,7 +92,28 @@ fun EinstellungenScreen(
         HorizontalDivider()
         Spacer(Modifier.height(8.dp))
 
-        ServerAbschnitt(serverViewModel)
+        Spacer(Modifier.height(28.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(20.dp))
+
+        Text("Sicherung", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Deine Watchlist liegt nur auf diesem Gerät. Android sichert sie zwar " +
+                "automatisch in dein Google Drive — eine eigene Datei ist trotzdem " +
+                "der zuverlässigere Weg bei einem Gerätewechsel.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = onExport) { Text("Exportieren") }
+            OutlinedButton(onClick = onImport) { Text("Importieren") }
+        }
+        sicherungsMeldung?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+        }
         }
     }
 }

@@ -44,10 +44,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.pattaku.otakupulse.app.di.AppContainer
-import de.pattaku.otakupulse.app.domain.Anime
+import de.pattaku.otakupulse.app.data.api.AnimeDetailDto
 import de.pattaku.otakupulse.app.ui.calendar.CalendarScreen
 import de.pattaku.otakupulse.app.ui.calendar.CalendarViewModel
 import de.pattaku.otakupulse.app.ui.detail.DetailScreen
@@ -56,7 +57,6 @@ import de.pattaku.otakupulse.app.ui.meldungen.MeldungenViewModel
 import de.pattaku.otakupulse.app.ui.party.PartyScreen
 import de.pattaku.otakupulse.app.ui.party.PartyViewModel
 import de.pattaku.otakupulse.app.ui.settings.EinstellungenScreen
-import de.pattaku.otakupulse.app.ui.settings.ServerViewModel
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
@@ -76,10 +76,9 @@ class CompanionApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Gespeicherte Serveradresse früh in den Zwischenspeicher holen — der
-        // Interceptor liest sie synchron und fiele sonst auf den Build-Standard zurück.
+        // Token früh in den Zwischenspeicher holen — der Interceptor liest es
+        // synchron und schickte sonst die erste Anfrage ohne Anmeldung los.
         CoroutineScope(Dispatchers.IO).launch {
-            container.settingsStore.load()
             container.tokenStore.token()
             container.meldeFcmTokenFallsMoeglich()
         }
@@ -88,6 +87,37 @@ class CompanionApplication : Application() {
 }
 
 class MainActivity : ComponentActivity() {
+
+    private var sicherungsMeldung by mutableStateOf<String?>(null)
+
+    /** Speichern-Dialog des Systems — kein eigener Dateibrowser nötig. */
+    private val exportZiel =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) return@registerForActivityResult
+            val container = (application as CompanionApplication).container
+            lifecycleScope.launch {
+                sicherungsMeldung = runCatching {
+                    val inhalt = container.backupRepository.exportieren()
+                    contentResolver.openOutputStream(uri)?.use { it.write(inhalt.toByteArray()) }
+                    "Gesichert."
+                }.getOrElse { "Sichern fehlgeschlagen: ${it.message}" }
+            }
+        }
+
+    private val importQuelle =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@registerForActivityResult
+            val container = (application as CompanionApplication).container
+            lifecycleScope.launch {
+                sicherungsMeldung = runCatching {
+                    val inhalt = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        ?: error("Datei nicht lesbar")
+                    val ergebnis = container.backupRepository.importieren(inhalt)
+                    "${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert " +
+                        "(von ${ergebnis.gesamt} in der Datei)."
+                }.getOrElse { "Import fehlgeschlagen: ${it.message}" }
+            }
+        }
 
     private val frageBenachrichtigung =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* Ablehnen ist ok */ }
@@ -121,7 +151,19 @@ class MainActivity : ComponentActivity() {
                     if (introLaeuft) {
                         IntroScreen(onFertig = { introLaeuft = false })
                     } else {
-                        Root(container, modus)
+                        Root(
+                            container = container,
+                            modus = modus,
+                            sicherungsMeldung = sicherungsMeldung,
+                            onExport = {
+                                sicherungsMeldung = null
+                                exportZiel.launch("otakupulse-watchlist.json")
+                            },
+                            onImport = {
+                                sicherungsMeldung = null
+                                importQuelle.launch(arrayOf("application/json", "text/plain"))
+                            },
+                        )
                     }
                 }
             }
@@ -141,11 +183,17 @@ private val ZIELE = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Root(container: AppContainer, modus: ThemeModus) {
+private fun Root(
+    container: AppContainer,
+    modus: ThemeModus,
+    sicherungsMeldung: String?,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+) {
     val bereich = rememberCoroutineScope()
     var einstellungenOffen by remember { mutableStateOf(false) }
     var ziel by remember { mutableIntStateOf(0) }
-    var detail by remember { mutableStateOf<Anime?>(null) }
+    var detail by remember { mutableStateOf<AnimeDetailDto?>(null) }
     var ladeId by remember { mutableStateOf<Int?>(null) }
 
     val meldungenVm: MeldungenViewModel = viewModel(factory = meldungenFactory(container))
@@ -161,7 +209,11 @@ private fun Root(container: AppContainer, modus: ThemeModus) {
 
     val offen = detail
     if (offen != null) {
-        DetailScreen(anime = offen, onBack = { detail = null })
+        DetailScreen(
+            anime = offen,
+            onBack = { detail = null },
+            onOeffneAnime = { detail = null; ladeId = it },
+        )
         return
     }
 
@@ -169,7 +221,9 @@ private fun Root(container: AppContainer, modus: ThemeModus) {
         EinstellungenScreen(
             modus = modus,
             onModus = { neu -> bereich.launch { container.themeStore.setze(neu) } },
-            serverViewModel = viewModel(factory = serverFactory(container)),
+            sicherungsMeldung = sicherungsMeldung,
+            onExport = onExport,
+            onImport = onImport,
             onBack = { einstellungenOffen = false },
         )
         return
@@ -212,7 +266,7 @@ private fun Root(container: AppContainer, modus: ThemeModus) {
             when (ziel) {
                 0 -> SwipeScreen(
                     viewModel = viewModel(factory = swipeFactory(container)),
-                    onOpenDetail = { detail = it },
+                    onOpenDetail = { ladeId = it.id },
                 )
                 1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
@@ -262,12 +316,6 @@ private fun meldungenFactory(container: AppContainer) = object : ViewModelProvid
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         MeldungenViewModel(container.database) as T
-}
-
-private fun serverFactory(container: AppContainer) = object : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ServerViewModel(container.settingsStore, container.api, container.deckRepository) as T
 }
 
 private fun watchlistFactory(container: AppContainer) = object : ViewModelProvider.Factory {

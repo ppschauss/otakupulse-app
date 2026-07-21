@@ -9,7 +9,7 @@ import java.time.Instant
 class AiringRepository(
     private val api: CompanionApi,
     private val db: AppDatabase,
-    private val settings: SettingsStore,
+    private val abgleich: AbgleichStore,
 ) {
 
     suspend fun woche(tage: Int = 7): List<Airing> =
@@ -23,7 +23,7 @@ class AiringRepository(
      * auseinanderlaufen.
      */
     suspend fun pruefeNeueFolgen(): List<Airing> {
-        val seit = settings.letzterFolgenAbgleich()
+        val seit = abgleich.letzterFolgenAbgleich()
         val jetzt = Instant.now()
 
         val alle = api.airing(days = 1, back = 14, onlyMine = true).airing
@@ -37,7 +37,7 @@ class AiringRepository(
         if (relevant.isNotEmpty()) {
             db.watchlist().markUnseen(relevant.map { it.animeId }.distinct())
         }
-        settings.setzeLetztenFolgenAbgleich(jetzt)
+        abgleich.setzeLetztenFolgenAbgleich(jetzt)
         return relevant
     }
 }

@@ -119,3 +119,124 @@ def fetch_airing(von, bis, anime_ids: list[int] | None = None) -> list[dict]:
             "format": m["format"],
         })
     return ergebnis
+
+
+def fetch_detail(anime_id: int) -> dict | None:
+    """Vollständige Detailansicht: Karte plus Genres, Tags, Studios, Sprachen, Anbieter, Verwandtes.
+
+    Alles in einem Rutsch statt in mehreren Abfragen — die Detailansicht öffnet sich
+    beim Antippen einer Karte, da zählt jede Millisekunde.
+    Charaktere, Stab und Sprecher bleiben bewusst draußen: bei ~29.000 Charakteren
+    und 28.000 Personen wäre das eine eigene Seite, keine Ergänzung.
+    """
+    karten = fetch_by_ids([anime_id])
+    if not karten:
+        return None
+    detail = karten[0]
+
+    with catalog_engine.connect() as conn:
+        detail["genres"] = [
+            r[0] for r in conn.execute(
+                text(
+                    "SELECT g.name FROM anime_rels r JOIN genres g ON g.id = r.genres_id"
+                    " WHERE r.parent_id = :id ORDER BY r.\"order\""
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        # Nach Rang sortiert: die zutreffendsten Tags zuerst, das ist die
+        # Reihenfolge, die AniList selbst verwendet.
+        detail["tags"] = [
+            {"name": r[0], "category": r[1], "rank": int(r[2]) if r[2] is not None else None}
+            for r in conn.execute(
+                text(
+                    "SELECT t.name, t.category::text, at.rank"
+                    " FROM anime_tags at JOIN tags t ON t.id = at.tag_id"
+                    " WHERE at._parent_id = :id AND t.is_adult = false"
+                    " ORDER BY at.rank DESC NULLS LAST LIMIT 20"
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        detail["studios"] = [
+            {"name": r[0], "isAnimation": bool(r[1])}
+            for r in conn.execute(
+                text(
+                    "SELECT s.name, s.is_animation_studio FROM anime_rels r"
+                    " JOIN studios s ON s.id = r.studios_id"
+                    " WHERE r.parent_id = :id ORDER BY s.is_animation_studio DESC NULLS LAST"
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        detail["languages"] = [
+            r[0] for r in conn.execute(
+                text(
+                    "SELECT value::text FROM anime_available_languages"
+                    " WHERE parent_id = :id ORDER BY \"order\""
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        detail["providers"] = [
+            r[0] for r in conn.execute(
+                text(
+                    "SELECT value::text FROM anime_streaming_providers"
+                    " WHERE parent_id = :id ORDER BY \"order\""
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        detail["links"] = [
+            {"platform": r[0], "url": r[1]}
+            for r in conn.execute(
+                text(
+                    "SELECT platform, url FROM anime_external_links"
+                    " WHERE _parent_id = :id ORDER BY _order"
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+        # Verwandte Titel: Vorgänger und Fortsetzungen zuerst, das ist die
+        # Frage, die man vor dem Anschauen wirklich hat.
+        verwandt = [
+            {"animeId": r[0], "relation": r[1]}
+            for r in conn.execute(
+                text(
+                    "SELECT ar.anime_id, ar.relation_type::text FROM anime_relations ar"
+                    " WHERE ar._parent_id = :id AND ar.anime_id IS NOT NULL"
+                    " ORDER BY CASE ar.relation_type::text"
+                    "   WHEN 'PREQUEL' THEN 0 WHEN 'SEQUEL' THEN 1 ELSE 2 END"
+                    " LIMIT 12"
+                ),
+                {"id": anime_id},
+            )
+        ]
+
+    if verwandt:
+        karten_map = {k["id"]: k for k in fetch_by_ids([v["animeId"] for v in verwandt])}
+        detail["related"] = [
+            {**karten_map[v["animeId"]], "relation": v["relation"]}
+            for v in verwandt
+            if v["animeId"] in karten_map
+        ]
+    else:
+        detail["related"] = []
+
+    detail["duration"] = _dauer(anime_id)
+    return detail
+
+
+def _dauer(anime_id: int) -> int | None:
+    with catalog_engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT duration, popularity, source FROM anime WHERE id = :id"),
+            {"id": anime_id},
+        ).fetchone()
+    return int(row[0]) if row and row[0] is not None else None

@@ -318,10 +318,10 @@ def anime_detail(
     device: Device = Depends(current_device),
 ) -> dict:
     """Einzelner Titel — für die Detailansicht aus der Watchlist heraus."""
-    karten = catalog.fetch_by_ids([anime_id])
-    if not karten:
+    detail = catalog.fetch_detail(anime_id)
+    if detail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unbekannter Titel")
-    return karten[0]
+    return detail
 
 
 @app.get("/v1/airing")

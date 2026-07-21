@@ -54,7 +54,7 @@ interface CompanionApi {
     suspend fun joinParty(@Body body: JoinPartyRequest): PartyDto
 
     @GET("v1/anime/{id}")
-    suspend fun anime(@retrofit2.http.Path("id") id: Int): AnimeDto
+    suspend fun anime(@retrofit2.http.Path("id") id: Int): AnimeDetailDto
 
     @GET("v1/airing")
     suspend fun airing(

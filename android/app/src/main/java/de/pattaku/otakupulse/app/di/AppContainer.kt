@@ -3,9 +3,10 @@ package de.pattaku.otakupulse.app.di
 import android.content.Context
 import de.pattaku.otakupulse.app.BuildConfig
 import de.pattaku.otakupulse.app.data.AiringRepository
+import de.pattaku.otakupulse.app.data.BackupRepository
 import de.pattaku.otakupulse.app.data.DeckRepository
 import de.pattaku.otakupulse.app.data.FilterStore
-import de.pattaku.otakupulse.app.data.SettingsStore
+import de.pattaku.otakupulse.app.data.AbgleichStore
 import de.pattaku.otakupulse.app.data.ThemeStore
 import de.pattaku.otakupulse.app.data.TokenStore
 import de.pattaku.otakupulse.app.data.WatchlistRepository
@@ -13,7 +14,6 @@ import de.pattaku.otakupulse.app.data.local.AppDatabase
 import de.pattaku.otakupulse.app.data.api.CompanionApi
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -27,11 +27,11 @@ class AppContainer(context: Context) {
 
     val tokenStore = TokenStore(applicationContext)
 
-    val settingsStore = SettingsStore(applicationContext)
-
     val filterStore = FilterStore(applicationContext)
 
     val themeStore = ThemeStore(applicationContext)
+
+    val abgleichStore = AbgleichStore(applicationContext)
 
     private val json = Json {
         ignoreUnknownKeys = true  // Backend darf Felder ergänzen, ohne alte Apps zu brechen
@@ -42,23 +42,12 @@ class AppContainer(context: Context) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor { chain ->
-            // Serveradresse zur Laufzeit umbiegen: Retrofit kennt nur die Basis-URL aus
-            // dem Build, die tatsächliche steht in den Einstellungen.
-            val ziel = settingsStore.cachedServerUrl().toHttpUrlOrNull()
-            var request = chain.request()
-            if (ziel != null) {
-                request = request.newBuilder().url(
-                    request.url.newBuilder()
-                        .scheme(ziel.scheme)
-                        .host(ziel.host)
-                        .port(ziel.port)
-                        .build(),
-                ).build()
-            }
-
+            // Geräte-Token an jede Anfrage hängen, sobald es eines gibt.
             val token = tokenStore.cachedToken()
-            if (token != null) {
-                request = request.newBuilder().header("Authorization", "Bearer $token").build()
+            val request = if (token != null) {
+                chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+            } else {
+                chain.request()
             }
             chain.proceed(request)
         }
@@ -78,7 +67,9 @@ class AppContainer(context: Context) {
 
     val watchlistRepository = WatchlistRepository(database, api)
 
-    val airingRepository = AiringRepository(api, database, settingsStore)
+    val backupRepository = BackupRepository(database, tokenStore)
+
+    val airingRepository = AiringRepository(api, database, abgleichStore)
 
     /**
      * Meldet das aktuelle FCM-Token ans Backend.
