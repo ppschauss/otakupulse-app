@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import text
 
 from .db import catalog_engine
-from .deck_query import DeckFilter, build_deck_query
+from .deck_query import SELECT_COLUMNS, DeckFilter, build_deck_query
 
 
 def _card(row: Any) -> dict:

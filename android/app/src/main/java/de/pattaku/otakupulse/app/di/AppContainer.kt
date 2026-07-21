@@ -15,6 +15,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
 
 /** Manuelle Abhängigkeitsverdrahtung — dieselbe Bauweise wie in WorkTracker. */
@@ -72,4 +73,17 @@ class AppContainer(context: Context) {
     val watchlistRepository = WatchlistRepository(database, api)
 
     val airingRepository = AiringRepository(api, database, settingsStore)
+
+    /**
+     * Meldet das aktuelle FCM-Token ans Backend.
+     *
+     * onNewToken feuert nur bei einem Wechsel — beim allerersten Start bleibt es
+     * still, und ohne diesen Aufruf hätte das Gerät nie ein Token hinterlegt.
+     */
+    suspend fun meldeFcmTokenFallsMoeglich() {
+        runCatching {
+            val token = com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
+            deckRepository.meldeFcmToken(token)
+        }
+    }
 }

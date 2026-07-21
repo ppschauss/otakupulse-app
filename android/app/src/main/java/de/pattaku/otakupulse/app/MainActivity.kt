@@ -1,6 +1,11 @@
 package de.pattaku.otakupulse.app
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -58,16 +63,30 @@ class CompanionApplication : Application() {
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             container.settingsStore.load()
             container.tokenStore.token()
+            container.meldeFcmTokenFallsMoeglich()
         }
         de.pattaku.otakupulse.app.work.EpisodeCheckWorker.planen(this)
     }
 }
 
 class MainActivity : ComponentActivity() {
+
+    private val frageBenachrichtigung =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* Ablehnen ist ok */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as CompanionApplication).container
+
+        // Ab Android 13 muss man fragen. Eine Ablehnung ist kein Beinbruch: das
+        // „neu"-Abzeichen in der Watchlist zeigt dieselbe Information weiterhin an.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            frageBenachrichtigung.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         setContent {
             CompanionTheme {

@@ -14,6 +14,22 @@ log = logging.getLogger(__name__)
 SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 
 
+def _token_ist_tot(status: int, antwort: str) -> bool:
+    """Entscheidet, ob ein FCM-Token dauerhaft unbrauchbar ist.
+
+    404 und 403 sind eindeutig: deinstalliert beziehungsweise falsches Projekt.
+    Bei 400 ist Vorsicht geboten — das kommt auch bei einer fehlerhaft gebauten
+    Nachricht. Nur wenn FCM ausdrücklich das Registrierungs-Token bemängelt,
+    darf es entfernt werden; sonst löschte ein Fehler im Nachrichtenaufbau
+    reihenweise gültige Tokens.
+    """
+    if status in (403, 404):
+        return True
+    if status == 400:
+        return "registration token" in antwort.lower()
+    return False
+
+
 class Pusher:
     """Verschickt Benachrichtigungen; ohne Schlüssel tut er still nichts.
 
@@ -94,7 +110,7 @@ class Pusher:
 
                 if antwort.status_code == 200:
                     zugestellt += 1
-                elif antwort.status_code in (403, 404):
+                elif _token_ist_tot(antwort.status_code, antwort.text):
                     tot.append(device)
                 else:
                     log.warning("FCM antwortete %s: %s", antwort.status_code, antwort.text[:200])
