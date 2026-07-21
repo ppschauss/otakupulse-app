@@ -27,7 +27,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -109,10 +111,18 @@ class MainActivity : ComponentActivity() {
             var introLaeuft by remember { mutableStateOf(true) }
 
             CompanionTheme(modus = modus) {
-                if (introLaeuft) {
-                    IntroScreen(onFertig = { introLaeuft = false })
-                } else {
-                    Root(container, modus)
+                // Surface malt den Hintergrund des Farbschemas. Ohne diese Ebene
+                // scheint bei Bildschirmen ausserhalb des Scaffold der
+                // XML-Fensterhintergrund durch.
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    if (introLaeuft) {
+                        IntroScreen(onFertig = { introLaeuft = false })
+                    } else {
+                        Root(container, modus)
+                    }
                 }
             }
         }

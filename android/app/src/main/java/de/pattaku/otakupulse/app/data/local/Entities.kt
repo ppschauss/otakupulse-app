@@ -52,6 +52,8 @@ data class WatchlistEntry(
 data class PendingSwipe(
     @PrimaryKey val animeId: Int,
     val direction: String,
+    /** Beim Super-Swipe die gewählten Partys, komma-getrennt. */
+    val partyIds: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
 )
 

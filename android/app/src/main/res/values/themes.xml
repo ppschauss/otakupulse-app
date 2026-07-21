@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Companion" parent="android:Theme.Material.NoActionBar" />
+    <!--
+      Nur der allererste Frame vor dem ersten Compose-Zeichnen. Danach malt
+      Surface() den Hintergrund aus dem gewählten Farbschema. Ohne eigenen
+      windowBackground scheint hier das Plattform-Grau #303030 durch, sobald ein
+      Bildschirm ausserhalb des Scaffold liegt.
+    -->
+    <style name="Theme.Companion" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/zinc_50</item>
+    </style>
 </resources>

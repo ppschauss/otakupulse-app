@@ -53,8 +53,37 @@ class PartyViewModel(private val api: CompanionApi) : ViewModel() {
         }
     }
 
+    fun umbenennen(id: Int, name: String) = viewModelScope.launch {
+        try {
+            api.renameParty(id, de.pattaku.otakupulse.app.data.api.RenamePartyRequest(name.trim()))
+            aktualisieren()
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(fehler = beschreibe(e))
+        }
+    }
+
+    fun loeschen(id: Int) = viewModelScope.launch {
+        try {
+            api.deleteParty(id)
+            aktualisieren()
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(fehler = beschreibe(e))
+        }
+    }
+
+    fun verlassen(id: Int) = viewModelScope.launch {
+        try {
+            api.leaveParty(id)
+            aktualisieren()
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(fehler = beschreibe(e))
+        }
+    }
+
     private fun beschreibe(e: Exception): String = when {
         e is retrofit2.HttpException && e.code() == 404 -> "Diesen Party-Code gibt es nicht."
+        e is retrofit2.HttpException && e.code() == 403 ->
+            "Nur wer die Party angelegt hat, kann sie löschen — du kannst sie verlassen."
         e is retrofit2.HttpException -> "Server meldet HTTP ${e.code()}"
         e is java.net.UnknownHostException || e is java.net.ConnectException ->
             "Keine Verbindung — stimmt die Adresse unter „Server“?"

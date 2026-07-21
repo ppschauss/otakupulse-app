@@ -63,6 +63,18 @@ interface CompanionApi {
         @Query("onlyMine") onlyMine: Boolean = false,
     ): AiringResponse
 
+    @retrofit2.http.PATCH("v1/parties/{id}")
+    suspend fun renameParty(
+        @retrofit2.http.Path("id") id: Int,
+        @Body body: RenamePartyRequest,
+    ): PartyDto
+
+    @retrofit2.http.DELETE("v1/parties/{id}")
+    suspend fun deleteParty(@retrofit2.http.Path("id") id: Int)
+
+    @POST("v1/parties/{id}/leave")
+    suspend fun leaveParty(@retrofit2.http.Path("id") id: Int)
+
     @GET("v1/filters")
     suspend fun filters(): FiltersResponse
 }

@@ -16,7 +16,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import de.pattaku.otakupulse.app.ui.theme.MarkenLadeanzeige
@@ -70,7 +78,14 @@ fun PartyScreen(viewModel: PartyViewModel) {
             item { Box(Modifier.fillMaxWidth(), Alignment.Center) { MarkenLadeanzeige() } }
         }
 
-        items(state.parties, key = { it.id }) { party -> PartyKarte(party) }
+        items(state.parties, key = { it.id }) { party ->
+            PartyKarte(
+                party = party,
+                onUmbenennen = { neu -> viewModel.umbenennen(party.id, neu) },
+                onLoeschen = { viewModel.loeschen(party.id) },
+                onVerlassen = { viewModel.verlassen(party.id) },
+            )
+        }
 
         item {
             Spacer(Modifier.height(8.dp))
@@ -125,10 +140,92 @@ fun PartyScreen(viewModel: PartyViewModel) {
 }
 
 @Composable
-private fun PartyKarte(party: PartyDto) {
+private fun PartyKarte(
+    party: PartyDto,
+    onUmbenennen: (String) -> Unit,
+    onLoeschen: () -> Unit,
+    onVerlassen: () -> Unit,
+) {
+    var menueOffen by remember { mutableStateOf(false) }
+    var umbenennenOffen by remember { mutableStateOf(false) }
+    var loeschenOffen by remember { mutableStateOf(false) }
+    var neuerName by remember(party.id) { mutableStateOf(party.name) }
+
+    if (umbenennenOffen) {
+        AlertDialog(
+            onDismissRequest = { umbenennenOffen = false },
+            title = { Text("Party umbenennen") },
+            text = {
+                OutlinedTextField(
+                    value = neuerName,
+                    onValueChange = { neuerName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onUmbenennen(neuerName); umbenennenOffen = false },
+                    enabled = neuerName.isNotBlank(),
+                ) { Text("Speichern") }
+            },
+            dismissButton = {
+                TextButton(onClick = { umbenennenOffen = false }) { Text("Abbrechen") }
+            },
+        )
+    }
+
+    if (loeschenOffen) {
+        AlertDialog(
+            onDismissRequest = { loeschenOffen = false },
+            title = { Text("Party löschen?") },
+            // Matches sind gemeinsam gesammelt — das ist keine Kleinigkeit.
+            text = {
+                Text(
+                    "\"${party.name}\" verschwindet für alle Mitglieder, samt der " +
+                        "${party.matches.size} gesammelten Matches. Das lässt sich nicht rückgängig machen.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onLoeschen(); loeschenOffen = false }) {
+                    Text("Löschen", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { loeschenOffen = false }) { Text("Behalten") }
+            },
+        )
+    }
+
     Card {
         Column(Modifier.padding(14.dp)) {
-            Text(party.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    party.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                Box {
+                    IconButton(onClick = { menueOffen = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Party verwalten")
+                    }
+                    DropdownMenu(expanded = menueOffen, onDismissRequest = { menueOffen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Umbenennen") },
+                            onClick = { menueOffen = false; umbenennenOffen = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Verlassen") },
+                            onClick = { menueOffen = false; onVerlassen() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Löschen") },
+                            onClick = { menueOffen = false; loeschenOffen = true },
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
 
             // Der Code ist das, was man Freunden vorliest — deshalb gross und breit gesperrt.

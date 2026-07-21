@@ -124,11 +124,22 @@ def backfill_matches_for_new_member(session: Session, party: Party, device: Devi
     return created
 
 
-def party_members_to_notify(session: Session, device: Device) -> list[Device]:
-    """Alle Party-Mitglieder außer dem Absender — Empfänger eines Super-Swipes."""
+def party_members_to_notify(
+    session: Session,
+    device: Device,
+    nur_partys: list | None = None,
+) -> list[Device]:
+    """Alle Party-Mitglieder außer dem Absender — Empfänger eines Super-Swipes.
+
+    `nur_partys` schränkt auf ausgewählte Partys ein. Fremde IDs werden dabei
+    still verworfen, damit niemand über die Auswahl in fremde Partys funkt.
+    """
     party_ids = list(
         session.scalars(select(PartyMember.party_id).where(PartyMember.device_id == device.id))
     )
+    if nur_partys:
+        erlaubt = {int(p) for p in nur_partys if str(p).lstrip("-").isdigit()}
+        party_ids = [p for p in party_ids if p in erlaubt]
     if not party_ids:
         return []
 

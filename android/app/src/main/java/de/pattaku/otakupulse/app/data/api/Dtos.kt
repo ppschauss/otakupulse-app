@@ -57,7 +57,12 @@ data class TagDto(val slug: String, val name: String, val category: String? = nu
 data class FiltersResponse(val genres: List<GenreDto>, val tags: List<TagDto>)
 
 @Serializable
-data class SwipeDto(val animeId: Int, val direction: String)
+data class SwipeDto(
+    val animeId: Int,
+    val direction: String,
+    /** Nur beim Super-Swipe gesetzt: an welche Partys er geht. */
+    val partyIds: List<Int>? = null,
+)
 
 @Serializable
 data class SwipeUpload(val swipes: List<SwipeDto>)
@@ -109,3 +114,6 @@ data class UpdateDeviceRequest(val displayName: String? = null, val fcmToken: St
 
 @Serializable
 data class UpdateDeviceResponse(val deviceId: Int, val displayName: String)
+
+@Serializable
+data class RenamePartyRequest(val name: String)

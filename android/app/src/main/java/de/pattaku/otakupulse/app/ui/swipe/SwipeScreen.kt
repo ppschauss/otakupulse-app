@@ -53,6 +53,15 @@ fun SwipeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var filterOffen by remember { mutableStateOf(false) }
 
+    state.superSwipeOffen?.let { karte ->
+        SuperSwipeDialog(
+            anime = karte,
+            partys = state.partys,
+            onSenden = viewModel::superSwipeAn,
+            onAbbrechen = viewModel::superSwipeAbbrechen,
+        )
+    }
+
     if (filterOffen) {
         FilterSheet(
             filter = state.filter,

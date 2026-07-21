@@ -182,6 +182,57 @@ def join_party(
     return _party_payload(session, party, device)
 
 
+@app.patch("/v1/parties/{party_id}")
+def rename_party(
+    party_id: int,
+    payload: dict,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Umbenennen darf jedes Mitglied — es ist eine gemeinsame Liste, kein Besitz."""
+    party = _eigene_party(session, party_id, device)
+    name = (payload.get("name") or "").strip()[:60]
+    if name:
+        party.name = name
+        session.commit()
+    return _party_payload(session, party, device)
+
+
+@app.delete("/v1/parties/{party_id}")
+def delete_party(
+    party_id: int,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Löschen darf nur, wer die Party angelegt hat.
+
+    Für alle anderen gibt es „verlassen": sonst könnte ein einzelnes Mitglied
+    die gesammelten Matches aller anderen wegwerfen.
+    """
+    party = _eigene_party(session, party_id, device)
+    if party.created_by != device.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Nur wer die Party angelegt hat, kann sie löschen — du kannst sie verlassen.",
+        )
+    session.delete(party)
+    session.commit()
+    return {"deleted": party_id}
+
+
+def _eigene_party(session: Session, party_id: int, device: Device) -> Party:
+    """Party nur herausgeben, wenn das Gerät Mitglied ist — sonst 404."""
+    mitglied = session.scalar(
+        select(PartyMember).where(
+            PartyMember.party_id == party_id, PartyMember.device_id == device.id
+        )
+    )
+    party = session.get(Party, party_id) if mitglied else None
+    if party is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Party nicht gefunden")
+    return party
+
+
 @app.post("/v1/parties/{party_id}/leave")
 def leave_party(
     party_id: int,
@@ -221,14 +272,23 @@ def post_swipes(
         accepted += 1
 
         if direction is SwipeDirection.SUPER:
-            _melde_super_swipe(session, device, anime_id)
+            _melde_super_swipe(session, device, anime_id, item.get("partyIds"))
 
     return {"accepted": accepted, "matches": matches}
 
 
-def _melde_super_swipe(session: Session, device: Device, anime_id: int) -> None:
-    """Schickt den Super-Swipe an alle anderen in den gemeinsamen Partys."""
-    empfaenger = party_members_to_notify(session, device)
+def _melde_super_swipe(
+    session: Session,
+    device: Device,
+    anime_id: int,
+    party_ids: list | None = None,
+) -> None:
+    """Schickt den Super-Swipe an die anderen Mitglieder.
+
+    Ohne Angabe gehen alle gemeinsamen Partys — die App schickt die Auswahl mit,
+    sobald man in mehr als einer ist.
+    """
+    empfaenger = party_members_to_notify(session, device, party_ids)
     if not empfaenger:
         return
     karten = catalog.fetch_by_ids([anime_id])

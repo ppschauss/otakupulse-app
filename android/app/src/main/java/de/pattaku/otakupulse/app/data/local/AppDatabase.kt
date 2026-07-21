@@ -90,7 +90,7 @@ class Converters {
 
 @Database(
     entities = [WatchlistEntry::class, PendingSwipe::class, Meldung::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -103,8 +103,15 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "companion.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
+
+        /** Ergänzt die Party-Auswahl am gepufferten Swipe. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE pending_swipe ADD COLUMN partyIds TEXT")
+            }
+        }
 
         /**
          * Legt nur die Meldungstabelle an.

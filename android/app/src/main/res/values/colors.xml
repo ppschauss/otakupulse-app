@@ -2,4 +2,6 @@
 <resources>
     <!-- OtakuPulse-Pink, dieselbe Marke wie die Website. -->
     <color name="ic_launcher_background">#FF4D6D</color>
+    <color name="zinc_950">#FF09090B</color>
+    <color name="zinc_50">#FFFAFAFA</color>
 </resources>

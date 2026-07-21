@@ -26,6 +26,9 @@ data class SwipeUiState(
     val exhausted: Boolean = false,
     val error: String? = null,
     val filter: DeckFilter = DeckFilter(),
+    /** Gesetzt, solange ein Super-Swipe auf die Party-Auswahl wartet. */
+    val superSwipeOffen: Anime? = null,
+    val partys: List<de.pattaku.otakupulse.app.data.api.PartyDto> = emptyList(),
     val genres: List<GenreDto> = emptyList(),
     val tags: List<TagDto> = emptyList(),
 )
@@ -69,6 +72,10 @@ class SwipeViewModel(
         runCatching { api.filters() }.onSuccess {
             _state.value = _state.value.copy(genres = it.genres, tags = it.tags)
         }
+        // Partys mitladen: davon hängt ab, ob der Super-Swipe nachfragen muss.
+        runCatching { api.parties().parties }.onSuccess {
+            _state.value = _state.value.copy(partys = it)
+        }
     }
 
     fun setzeFilter(neu: DeckFilter) {
@@ -105,15 +112,39 @@ class SwipeViewModel(
         publish()
 
         if (karte != null) {
-            viewModelScope.launch {
-                // Erst lokal wirksam machen, dann übertragen — Wischen muss auch
-                // im Funkloch funktionieren.
-                watchlist.record(karte, direction)
-                SwipeSyncWorker.enqueue(appContext)
+            if (direction == SwipeDirection.SUPER && _state.value.partys.size > 1) {
+                // In mehreren Partys ist „an alle" selten gemeint — nachfragen.
+                // Die Karte ist schon weg, der Stapel stockt also nicht.
+                _state.value = _state.value.copy(superSwipeOffen = karte)
+            } else {
+                uebernehme(karte, direction, null)
             }
         }
 
         if (buffer.needsMore()) viewModelScope.launch { loadMore() }
+    }
+
+    /** Auswahl bestätigt: Super-Swipe an die gewählten Partys. */
+    fun superSwipeAn(partyIds: List<Int>) {
+        val karte = _state.value.superSwipeOffen ?: return
+        _state.value = _state.value.copy(superSwipeOffen = null)
+        uebernehme(karte, SwipeDirection.SUPER, partyIds)
+    }
+
+    /** Auswahl abgebrochen: der Titel wandert still auf die Watchlist, ohne Benachrichtigung. */
+    fun superSwipeAbbrechen() {
+        val karte = _state.value.superSwipeOffen ?: return
+        _state.value = _state.value.copy(superSwipeOffen = null)
+        uebernehme(karte, SwipeDirection.RIGHT, null)
+    }
+
+    private fun uebernehme(karte: Anime, direction: SwipeDirection, partyIds: List<Int>?) {
+        viewModelScope.launch {
+            // Erst lokal wirksam machen, dann übertragen — Wischen muss auch
+            // im Funkloch funktionieren.
+            watchlist.record(karte, direction, partyIds)
+            SwipeSyncWorker.enqueue(appContext)
+        }
     }
 
     /**

@@ -27,7 +27,7 @@ class WatchlistRepository(
     fun byStatus(status: WatchStatus): Flow<List<WatchlistEntry>> = db.watchlist().byStatus(status)
 
     /** Nimmt einen Swipe auf: lokal wirksam, zur Übertragung vorgemerkt. */
-    suspend fun record(anime: Anime, direction: SwipeDirection) {
+    suspend fun record(anime: Anime, direction: SwipeDirection, partyIds: List<Int>? = null) {
         if (direction != SwipeDirection.LEFT) {
             // Rechts und Super bedeuten beide Interesse — der Titel wandert auf die Watchlist.
             val existing = db.watchlist().find(anime.id)
@@ -35,7 +35,13 @@ class WatchlistRepository(
                 db.watchlist().upsert(WatchlistEntry.from(anime))
             }
         }
-        db.pendingSwipes().add(PendingSwipe(animeId = anime.id, direction = direction.name))
+        db.pendingSwipes().add(
+            PendingSwipe(
+                animeId = anime.id,
+                direction = direction.name,
+                partyIds = partyIds?.takeIf { it.isNotEmpty() }?.joinToString(","),
+            ),
+        )
     }
 
     suspend fun pendingCount(): Int = db.pendingSwipes().count()
@@ -50,7 +56,17 @@ class WatchlistRepository(
         val pending = db.pendingSwipes().oldest()
         if (pending.isEmpty()) return 0
 
-        api.uploadSwipes(SwipeUpload(pending.map { SwipeDto(it.animeId, it.direction) }))
+        api.uploadSwipes(
+            SwipeUpload(
+                pending.map {
+                    SwipeDto(
+                        animeId = it.animeId,
+                        direction = it.direction,
+                        partyIds = it.partyIds?.split(",")?.mapNotNull(String::toIntOrNull),
+                    )
+                },
+            ),
+        )
         db.pendingSwipes().remove(pending.map { it.animeId })
         return pending.size
     }

@@ -125,3 +125,24 @@ def test_nachtrag_erzeugt_keine_doppelten_matches(session):
     record_swipe(session, b, 42, SwipeDirection.RIGHT)   # Match entsteht hier schon
     assert backfill_matches_for_new_member(session, party, b) == []
     assert session.query(Match).count() == 1
+
+
+def test_super_swipe_laesst_sich_auf_eine_party_beschraenken(session):
+    a = make_device(session, "patrick")
+    b = make_device(session, "freund")
+    c = make_device(session, "kollege")
+    p1 = make_party(session, a, b)
+    make_party(session, a, c)
+
+    empfaenger = party_members_to_notify(session, a, nur_partys=[p1.id])
+    assert {d.display_name for d in empfaenger} == {"freund"}
+
+
+def test_fremde_party_id_in_der_auswahl_wird_verworfen(session):
+    # Sonst könnte man über die Auswahl in Partys funken, in denen man nicht ist.
+    a = make_device(session, "patrick")
+    b = make_device(session, "fremder")
+    make_party(session, a)
+    fremde = make_party(session, b)
+
+    assert party_members_to_notify(session, a, nur_partys=[fremde.id]) == []
