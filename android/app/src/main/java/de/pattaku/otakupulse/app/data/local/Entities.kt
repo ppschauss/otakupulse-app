@@ -54,3 +54,21 @@ data class PendingSwipe(
     val direction: String,
     val createdAt: Long = System.currentTimeMillis(),
 )
+
+/**
+ * Eine empfangene Benachrichtigung.
+ *
+ * Android-Benachrichtigungen sind flüchtig — einmal weggewischt, sind sie weg.
+ * Wer nachts einen Super-Swipe bekommt, soll morgens noch sehen können, worum es ging.
+ */
+@Entity(tableName = "meldung")
+data class Meldung(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val titel: String,
+    val text: String,
+    val animeId: Int? = null,
+    /** SUPER_SWIPE oder NEUE_FOLGE — bestimmt das Symbol in der Liste. */
+    val art: String,
+    val empfangenAm: Long = System.currentTimeMillis(),
+    val gelesen: Boolean = false,
+)

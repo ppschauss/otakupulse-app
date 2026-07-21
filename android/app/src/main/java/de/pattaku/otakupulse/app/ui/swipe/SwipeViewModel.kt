@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
 import de.pattaku.otakupulse.app.data.DeckRepository
+import de.pattaku.otakupulse.app.data.FilterStore
+import de.pattaku.otakupulse.app.data.api.CompanionApi
+import de.pattaku.otakupulse.app.data.api.GenreDto
+import de.pattaku.otakupulse.app.data.api.TagDto
 import de.pattaku.otakupulse.app.data.WatchlistRepository
 import de.pattaku.otakupulse.app.work.SwipeSyncWorker
 import de.pattaku.otakupulse.app.domain.Anime
@@ -21,11 +25,16 @@ data class SwipeUiState(
     val loading: Boolean = true,
     val exhausted: Boolean = false,
     val error: String? = null,
+    val filter: DeckFilter = DeckFilter(),
+    val genres: List<GenreDto> = emptyList(),
+    val tags: List<TagDto> = emptyList(),
 )
 
 class SwipeViewModel(
     private val repository: DeckRepository,
     private val watchlist: WatchlistRepository,
+    private val filterStore: FilterStore,
+    private val api: CompanionApi,
     private val appContext: Context,
 ) : ViewModel() {
 
@@ -36,13 +45,41 @@ class SwipeViewModel(
     private val seed = UUID.randomUUID().toString()
 
     private var filter = DeckFilter()
+
+    /** Neuer Seed bei jedem Filterwechsel — sonst käme dieselbe Reihenfolge zurück. */
+    private var seedAktuell = ""
+
     private var loadingPage = false
 
     private val _state = MutableStateFlow(SwipeUiState())
     val state: StateFlow<SwipeUiState> = _state.asStateFlow()
 
     init {
-        start()
+        viewModelScope.launch {
+            filter = filterStore.laden()
+            _state.value = _state.value.copy(filter = filter)
+            start()
+            ladeFilterOptionen()
+        }
+    }
+
+    private suspend fun ladeFilterOptionen() {
+        // Scheitert das, bleibt der Stapel trotzdem benutzbar — nur die Auswahllisten
+        // im Filterblatt fehlen dann.
+        runCatching { api.filters() }.onSuccess {
+            _state.value = _state.value.copy(genres = it.genres, tags = it.tags)
+        }
+    }
+
+    fun setzeFilter(neu: DeckFilter) {
+        filter = neu
+        seedAktuell = java.util.UUID.randomUUID().toString()
+        buffer.clear()
+        _state.value = _state.value.copy(filter = neu, exhausted = false, cards = emptyList())
+        viewModelScope.launch {
+            filterStore.speichern(neu)
+            start()
+        }
     }
 
     private fun start() = viewModelScope.launch {
@@ -95,7 +132,7 @@ class SwipeViewModel(
         if (loadingPage || buffer.isExhausted) return
         loadingPage = true
         try {
-            val page = repository.loadPage(filter, seed, buffer.nextOffset())
+            val page = repository.loadPage(filter, seedAktuell.ifEmpty { seed }, buffer.nextOffset())
             buffer.append(page)
             _state.value = _state.value.copy(error = null)
         } catch (e: Exception) {

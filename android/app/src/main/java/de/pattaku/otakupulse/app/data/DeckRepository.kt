@@ -25,6 +25,9 @@ class DeckRepository(
         api.updateDevice(UpdateDeviceRequest(fcmToken = token))
     }
 
+    /** Einzelner Titel für die Detailansicht aus Watchlist oder Meldung heraus. */
+    suspend fun detail(animeId: Int): Anime = api.anime(animeId).toDomain()
+
     suspend fun loadPage(filter: DeckFilter, seed: String, offset: Int, limit: Int = 20): List<Anime> =
         api.deck(
             genres = filter.genres,
@@ -32,6 +35,7 @@ class DeckRepository(
             providers = filter.providers,
             languages = filter.languages,
             formats = filter.formats,
+            statuses = filter.statuses,
             yearFrom = filter.yearFrom,
             yearTo = filter.yearTo,
             minScore = filter.minScore,

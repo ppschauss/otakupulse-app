@@ -1,5 +1,6 @@
 package de.pattaku.otakupulse.app.ui.watchlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,7 @@ private val TABS = listOf(
 )
 
 @Composable
-fun WatchlistScreen(viewModel: WatchlistViewModel) {
+fun WatchlistScreen(viewModel: WatchlistViewModel, onOeffneAnime: (Int) -> Unit = {}) {
     var tab by remember { mutableIntStateOf(0) }
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val status = TABS[tab].first
@@ -81,6 +82,7 @@ fun WatchlistScreen(viewModel: WatchlistViewModel) {
                 items(gefiltert, key = { it.animeId }) { entry ->
                     WatchlistZeile(
                         entry = entry,
+                        onKlick = { onOeffneAnime(entry.animeId) },
                         onFolgePlus = { viewModel.folgeAbhaken(entry) },
                         onStatus = { viewModel.setzeStatus(entry.animeId, it) },
                     )
@@ -100,10 +102,11 @@ private fun leerText(status: WatchStatus): String = when (status) {
 @Composable
 private fun WatchlistZeile(
     entry: WatchlistEntry,
+    onKlick: () -> Unit,
     onFolgePlus: () -> Unit,
     onStatus: (WatchStatus) -> Unit,
 ) {
-    Card {
+    Card(modifier = Modifier.clickable(onClick = onKlick)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = entry.coverImageUrl,

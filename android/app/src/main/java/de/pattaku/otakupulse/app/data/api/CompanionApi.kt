@@ -31,6 +31,7 @@ interface CompanionApi {
         @Query("providers") providers: List<String> = emptyList(),
         @Query("languages") languages: List<String> = emptyList(),
         @Query("formats") formats: List<String> = emptyList(),
+        @Query("statuses") statuses: List<String> = emptyList(),
         @Query("yearFrom") yearFrom: Int? = null,
         @Query("yearTo") yearTo: Int? = null,
         @Query("minScore") minScore: Int? = null,
@@ -51,6 +52,9 @@ interface CompanionApi {
 
     @POST("v1/parties/join")
     suspend fun joinParty(@Body body: JoinPartyRequest): PartyDto
+
+    @GET("v1/anime/{id}")
+    suspend fun anime(@retrofit2.http.Path("id") id: Int): AnimeDto
 
     @GET("v1/airing")
     suspend fun airing(

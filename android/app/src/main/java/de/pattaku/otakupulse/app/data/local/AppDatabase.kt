@@ -10,6 +10,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -59,6 +61,25 @@ interface PendingSwipeDao {
     suspend fun count(): Int
 }
 
+@Dao
+interface MeldungDao {
+
+    @Query("SELECT * FROM meldung ORDER BY empfangenAm DESC LIMIT 200")
+    fun alle(): Flow<List<Meldung>>
+
+    @Query("SELECT COUNT(*) FROM meldung WHERE gelesen = 0")
+    fun ungelesen(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun hinzufuegen(meldung: Meldung)
+
+    @Query("UPDATE meldung SET gelesen = 1")
+    suspend fun alleGelesen()
+
+    @Query("DELETE FROM meldung")
+    suspend fun leeren()
+}
+
 class Converters {
     @TypeConverter
     fun toStatus(value: String): WatchStatus = WatchStatus.valueOf(value)
@@ -68,8 +89,8 @@ class Converters {
 }
 
 @Database(
-    entities = [WatchlistEntry::class, PendingSwipe::class],
-    version = 1,
+    entities = [WatchlistEntry::class, PendingSwipe::class, Meldung::class],
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -77,9 +98,37 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun watchlist(): WatchlistDao
     abstract fun pendingSwipes(): PendingSwipeDao
+    abstract fun meldungen(): MeldungDao
 
     companion object {
         fun build(context: Context): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, "companion.db").build()
+            Room.databaseBuilder(context, AppDatabase::class.java, "companion.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
+
+        /**
+         * Legt nur die Meldungstabelle an.
+         *
+         * Bewusst keine zerstörende Migration: die Watchlist ist die einzige
+         * Sammlung, die der Nutzer selbst aufgebaut hat, und sie liegt nirgendwo
+         * sonst — ein Neuanlegen der Datenbank würde sie ersatzlos löschen.
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS meldung (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        titel TEXT NOT NULL,
+                        text TEXT NOT NULL,
+                        animeId INTEGER,
+                        art TEXT NOT NULL,
+                        empfangenAm INTEGER NOT NULL,
+                        gelesen INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
     }
 }

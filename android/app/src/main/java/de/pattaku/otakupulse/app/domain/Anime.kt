@@ -31,12 +31,14 @@ enum class SwipeDirection {
 }
 
 /** Wonach der Stapel gefüllt wird. Leere Listen bedeuten „egal". */
+@kotlinx.serialization.Serializable
 data class DeckFilter(
     val genres: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
     val providers: List<String> = emptyList(),
     val languages: List<String> = emptyList(),
     val formats: List<String> = emptyList(),
+    val statuses: List<String> = emptyList(),
     val yearFrom: Int? = null,
     val yearTo: Int? = null,
     val minScore: Int? = null,

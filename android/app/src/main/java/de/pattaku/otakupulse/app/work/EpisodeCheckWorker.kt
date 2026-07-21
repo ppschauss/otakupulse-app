@@ -36,7 +36,19 @@ class EpisodeCheckWorker(
         val container = (applicationContext as CompanionApplication).container
         return try {
             val neue = container.airingRepository.pruefeNeueFolgen()
-            if (neue.isNotEmpty()) benachrichtige(neue.size, neue.first().title)
+            if (neue.isNotEmpty()) {
+                neue.forEach { folge ->
+                    container.database.meldungen().hinzufuegen(
+                        de.pattaku.otakupulse.app.data.local.Meldung(
+                            titel = "Neue Folge",
+                            text = folge.episode?.let { "${folge.title} — Folge $it" } ?: folge.title,
+                            animeId = folge.animeId,
+                            art = de.pattaku.otakupulse.app.ui.meldungen.ART_NEUE_FOLGE,
+                        ),
+                    )
+                }
+                benachrichtige(neue.size, neue.first().title)
+            }
             Result.success()
         } catch (e: Exception) {
             Result.retry()

@@ -12,6 +12,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import de.pattaku.otakupulse.app.CompanionApplication
 import de.pattaku.otakupulse.app.R
+import de.pattaku.otakupulse.app.data.local.Meldung
+import de.pattaku.otakupulse.app.ui.meldungen.ART_SUPER_SWIPE
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -34,6 +36,24 @@ class CompanionMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val titel = message.data["title"] ?: message.notification?.title ?: "Super-Swipe"
         val text = message.data["body"] ?: message.notification?.body ?: return
+        val animeId = message.data["animeId"]?.toIntOrNull()
+
+        // Erst festhalten, dann anzeigen: Android-Benachrichtigungen sind flüchtig,
+        // die Liste in der App bleibt.
+        val container = (application as CompanionApplication).container
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                container.database.meldungen().hinzufuegen(
+                    Meldung(
+                        titel = titel,
+                        text = text,
+                        animeId = animeId,
+                        art = ART_SUPER_SWIPE,
+                    ),
+                )
+            }
+        }
+
         zeige(titel, text)
     }
 

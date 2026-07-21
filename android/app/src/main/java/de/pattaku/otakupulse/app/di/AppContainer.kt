@@ -4,6 +4,7 @@ import android.content.Context
 import de.pattaku.otakupulse.app.BuildConfig
 import de.pattaku.otakupulse.app.data.AiringRepository
 import de.pattaku.otakupulse.app.data.DeckRepository
+import de.pattaku.otakupulse.app.data.FilterStore
 import de.pattaku.otakupulse.app.data.SettingsStore
 import de.pattaku.otakupulse.app.data.TokenStore
 import de.pattaku.otakupulse.app.data.WatchlistRepository
@@ -26,6 +27,8 @@ class AppContainer(context: Context) {
     val tokenStore = TokenStore(applicationContext)
 
     val settingsStore = SettingsStore(applicationContext)
+
+    val filterStore = FilterStore(applicationContext)
 
     private val json = Json {
         ignoreUnknownKeys = true  // Backend darf Felder ergänzen, ohne alte Apps zu brechen

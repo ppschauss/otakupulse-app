@@ -4,28 +4,30 @@ import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import kotlinx.coroutines.launch
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,23 +35,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.pattaku.otakupulse.app.di.AppContainer
 import de.pattaku.otakupulse.app.domain.Anime
-import de.pattaku.otakupulse.app.ui.detail.DetailScreen
-import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
-import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
 import de.pattaku.otakupulse.app.ui.calendar.CalendarScreen
 import de.pattaku.otakupulse.app.ui.calendar.CalendarViewModel
+import de.pattaku.otakupulse.app.ui.detail.DetailScreen
+import de.pattaku.otakupulse.app.ui.meldungen.MeldungenScreen
+import de.pattaku.otakupulse.app.ui.meldungen.MeldungenViewModel
 import de.pattaku.otakupulse.app.ui.party.PartyScreen
 import de.pattaku.otakupulse.app.ui.party.PartyViewModel
 import de.pattaku.otakupulse.app.ui.settings.ServerScreen
 import de.pattaku.otakupulse.app.ui.settings.ServerViewModel
+import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
+import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistScreen
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistViewModel
+import de.pattaku.otakupulse.app.work.EpisodeCheckWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class CompanionApplication : Application() {
     lateinit var container: AppContainer
@@ -60,12 +70,12 @@ class CompanionApplication : Application() {
         container = AppContainer(this)
         // Gespeicherte Serveradresse früh in den Zwischenspeicher holen — der
         // Interceptor liest sie synchron und fiele sonst auf den Build-Standard zurück.
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             container.settingsStore.load()
             container.tokenStore.token()
             container.meldeFcmTokenFallsMoeglich()
         }
-        de.pattaku.otakupulse.app.work.EpisodeCheckWorker.planen(this)
+        EpisodeCheckWorker.planen(this)
     }
 }
 
@@ -79,8 +89,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as CompanionApplication).container
 
-        // Ab Android 13 muss man fragen. Eine Ablehnung ist kein Beinbruch: das
-        // „neu"-Abzeichen in der Watchlist zeigt dieselbe Information weiterhin an.
+        // Ab Android 13 muss man fragen. Eine Ablehnung ist kein Beinbruch: die
+        // Meldungsliste in der App zeigt dieselbe Information weiterhin an.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
@@ -98,12 +108,12 @@ class MainActivity : ComponentActivity() {
 
 private data class Ziel(val label: String, val icon: ImageVector)
 
-// Kalender und Party kommen mit M4/M5 dazu.
 private val ZIELE = listOf(
     Ziel("Entdecken", Icons.Default.Style),
     Ziel("Watchlist", Icons.Default.Bookmark),
     Ziel("Kalender", Icons.Default.CalendarMonth),
     Ziel("Party", Icons.Default.Groups),
+    Ziel("Meldungen", Icons.Default.Notifications),
     Ziel("Server", Icons.Default.Dns),
 )
 
@@ -111,6 +121,18 @@ private val ZIELE = listOf(
 private fun Root(container: AppContainer) {
     var ziel by remember { mutableIntStateOf(0) }
     var detail by remember { mutableStateOf<Anime?>(null) }
+    var ladeId by remember { mutableStateOf<Int?>(null) }
+
+    val meldungenVm: MeldungenViewModel = viewModel(factory = meldungenFactory(container))
+    val ungelesen by meldungenVm.ungelesen.collectAsStateWithLifecycle()
+
+    // Detailansicht aus Watchlist oder Meldung: dort liegt nur die ID vor,
+    // der vollständige Titel muss nachgeladen werden.
+    LaunchedEffect(ladeId) {
+        val id = ladeId ?: return@LaunchedEffect
+        runCatching { container.deckRepository.detail(id) }.onSuccess { detail = it }
+        ladeId = null
+    }
 
     val offen = detail
     if (offen != null) {
@@ -126,7 +148,15 @@ private fun Root(container: AppContainer) {
                     NavigationBarItem(
                         selected = ziel == index,
                         onClick = { ziel = index },
-                        icon = { Icon(z.icon, contentDescription = z.label) },
+                        icon = {
+                            if (z.label == "Meldungen" && ungelesen > 0) {
+                                BadgedBox(badge = { Badge { Text("$ungelesen") } }) {
+                                    Icon(z.icon, contentDescription = z.label)
+                                }
+                            } else {
+                                Icon(z.icon, contentDescription = z.label)
+                            }
+                        },
                         label = { Text(z.label) },
                     )
                 }
@@ -141,12 +171,17 @@ private fun Root(container: AppContainer) {
                 )
                 1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
+                    onOeffneAnime = { ladeId = it },
                 )
                 2 -> CalendarScreen(
                     viewModel = viewModel(factory = calendarFactory(container)),
                 )
                 3 -> PartyScreen(
                     viewModel = viewModel(factory = partyFactory(container)),
+                )
+                4 -> MeldungenScreen(
+                    viewModel = meldungenVm,
+                    onOeffneAnime = { ladeId = it },
                 )
                 else -> ServerScreen(
                     viewModel = viewModel(factory = serverFactory(container)),
@@ -163,6 +198,8 @@ private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.F
         SwipeViewModel(
             container.deckRepository,
             container.watchlistRepository,
+            container.filterStore,
+            container.api,
             container.applicationContext,
         ) as T
 }
@@ -177,6 +214,12 @@ private fun partyFactory(container: AppContainer) = object : ViewModelProvider.F
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         PartyViewModel(container.api) as T
+}
+
+private fun meldungenFactory(container: AppContainer) = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        MeldungenViewModel(container.database) as T
 }
 
 private fun serverFactory(container: AppContainer) = object : ViewModelProvider.Factory {

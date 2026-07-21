@@ -242,6 +242,18 @@ def _melde_super_swipe(session: Session, device: Device, anime_id: int) -> None:
     )
 
 
+@app.get("/v1/anime/{anime_id}")
+def anime_detail(
+    anime_id: int,
+    device: Device = Depends(current_device),
+) -> dict:
+    """Einzelner Titel — für die Detailansicht aus der Watchlist heraus."""
+    karten = catalog.fetch_by_ids([anime_id])
+    if not karten:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unbekannter Titel")
+    return karten[0]
+
+
 @app.get("/v1/airing")
 def airing(
     days: int = 7,
