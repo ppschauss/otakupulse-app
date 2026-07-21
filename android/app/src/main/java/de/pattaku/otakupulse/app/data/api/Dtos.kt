@@ -67,3 +67,6 @@ data class MatchDto(val partyId: Int, val animeId: Int)
 
 @Serializable
 data class SwipeUploadResponse(val accepted: Int, val matches: List<MatchDto> = emptyList())
+
+@Serializable
+data class HealthResponse(val status: String)

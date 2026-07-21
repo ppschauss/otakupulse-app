@@ -136,7 +136,7 @@ private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.F
 private fun serverFactory(container: AppContainer) = object : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ServerViewModel(container.settingsStore, container.api) as T
+        ServerViewModel(container.settingsStore, container.api, container.deckRepository) as T
 }
 
 private fun watchlistFactory(container: AppContainer) = object : ViewModelProvider.Factory {

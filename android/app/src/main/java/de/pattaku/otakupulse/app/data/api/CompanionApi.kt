@@ -13,6 +13,10 @@ import retrofit2.http.Query
  */
 interface CompanionApi {
 
+    /** Erreichbarkeitsprüfung — die einzige Route ohne Token. */
+    @GET("health")
+    suspend fun health(): HealthResponse
+
     @POST("v1/devices")
     suspend fun registerDevice(@Body body: DeviceRequest): DeviceResponse
 

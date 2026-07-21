@@ -60,7 +60,8 @@ fun SwipeScreen(
 
                 state.error != null -> Hinweis(
                     titel = "Da klemmt etwas",
-                    text = state.error!!,
+                    // Fast immer ist die Serveradresse schuld — deshalb der Verweis.
+                    text = state.error!! + "\n\nStimmt die Adresse unter „Server“?",
                     knopf = "Nochmal versuchen",
                     onKnopf = viewModel::retry,
                 )

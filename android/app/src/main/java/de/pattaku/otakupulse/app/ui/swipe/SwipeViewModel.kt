@@ -47,6 +47,7 @@ class SwipeViewModel(
 
     private fun start() = viewModelScope.launch {
         try {
+            _state.value = _state.value.copy(loading = true)
             repository.ensureRegistered(defaultName = android.os.Build.MODEL ?: "Mein Gerät")
             loadMore()
         } catch (e: Exception) {
@@ -78,9 +79,16 @@ class SwipeViewModel(
         if (buffer.needsMore()) viewModelScope.launch { loadMore() }
     }
 
+    /**
+     * Erneut versuchen — inklusive Registrierung.
+     *
+     * Die lief bisher nur beim allerersten Start. Scheiterte sie dort (Server noch
+     * nicht erreichbar), blieb das Gerät ohne Token und jeder weitere Versuch endete
+     * in einem irreführenden 401.
+     */
     fun retry() {
         _state.value = _state.value.copy(loading = true, error = null)
-        viewModelScope.launch { loadMore() }
+        start()
     }
 
     private suspend fun loadMore() {

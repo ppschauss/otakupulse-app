@@ -1,7 +1,9 @@
 package de.pattaku.otakupulse.app.ui.settings
 
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.pattaku.otakupulse.app.data.DeckRepository
 import de.pattaku.otakupulse.app.data.SettingsStore
 import de.pattaku.otakupulse.app.data.api.CompanionApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ data class ServerUiState(
 class ServerViewModel(
     private val settings: SettingsStore,
     private val api: CompanionApi,
+    private val deck: DeckRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ServerUiState())
@@ -35,29 +38,54 @@ class ServerViewModel(
     }
 
     /**
-     * Speichert die Adresse und prüft sie sofort.
+     * Speichert die Adresse und arbeitet drei Stufen ab.
      *
-     * Gespeichert wird vor der Prüfung, weil der Interceptor die Adresse aus den
-     * Einstellungen zieht — sonst würde gegen den alten Server geprüft.
+     * Wichtig ist die Reihenfolge: erst /health, das als einzige Route kein Token
+     * verlangt. Sonst meldet ein noch nicht registriertes Gerät „401", obwohl in
+     * Wahrheit nur die Registrierung fehlt — und man sucht den Fehler am falschen Ende.
      */
     fun pruefenUndSpeichern() = viewModelScope.launch {
         _state.value = _state.value.copy(pruefend = true, meldung = null)
         val vorher = settings.cachedServerUrl()
+        settings.save(_state.value.url)
+
         try {
-            settings.save(_state.value.url)
-            api.filters()  // eine echte Abfrage, keine bloße Erreichbarkeitsprüfung
+            api.health()
+        } catch (e: Exception) {
+            settings.save(vorher)  // unerreichbare Adresse nicht dauerhaft übernehmen
+            melde("Server nicht erreichbar: ${grund(e)}")
+            return@launch
+        }
+
+        try {
+            // Legt das Gerät an, falls noch keins existiert — hier fehlte es bisher.
+            deck.ensureRegistered(defaultName = Build.MODEL ?: "Mein Gerät")
+        } catch (e: Exception) {
+            melde("Server antwortet, aber die Anmeldung des Geräts scheiterte: ${grund(e)}")
+            return@launch
+        }
+
+        try {
+            api.filters()
             _state.value = _state.value.copy(
                 pruefend = false,
                 erfolgreich = true,
                 meldung = "Verbunden. Der Stapel sollte jetzt laden.",
             )
         } catch (e: Exception) {
-            settings.save(vorher)  // kaputte Adresse nicht dauerhaft übernehmen
-            _state.value = _state.value.copy(
-                pruefend = false,
-                erfolgreich = false,
-                meldung = "Keine Verbindung: ${e.message ?: e::class.simpleName}",
-            )
+            melde("Angemeldet, aber die Daten kamen nicht durch: ${grund(e)}")
         }
+    }
+
+    private fun melde(text: String) {
+        _state.value = _state.value.copy(pruefend = false, erfolgreich = false, meldung = text)
+    }
+
+    private fun grund(e: Exception): String = when (e) {
+        is retrofit2.HttpException -> "HTTP ${e.code()}"
+        is java.net.UnknownHostException -> "Adresse unbekannt"
+        is java.net.ConnectException -> "keine Verbindung"
+        is javax.net.ssl.SSLException -> "TLS-Fehler — bei einer LAN-IP http statt https nutzen"
+        else -> e.message ?: e::class.simpleName ?: "unbekannt"
     }
 }
