@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from .auth import current_device, new_token
 from .db import companion_engine, get_session, get_settings
 from .deck_query import DeckFilter
 from .push import Pusher
+from .ratelimit import ALLGEMEIN, REGISTRIERUNG, client_ip, pruefe
 from .swipes import (
     backfill_matches_for_new_member,
     generate_join_code,
@@ -43,8 +44,17 @@ def health() -> dict:
 
 
 @app.post("/v1/devices", status_code=201)
-def register_device(payload: dict, session: Session = Depends(get_session)) -> dict:
-    """Registriert ein Gerät und gibt das Token zurück — die einzige offene Route."""
+def register_device(
+    payload: dict,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Registriert ein Gerät und gibt das Token zurück — die einzige offene Route.
+
+    Streng gedrosselt: ohne Grenze könnte jeder beliebig viele Tokens erzeugen und
+    damit den Deck-Ausschluss gewischter Titel umgehen.
+    """
+    pruefe(REGISTRIERUNG, f"reg:{client_ip(request)}")
     name = (payload.get("displayName") or "").strip()[:60] or "Unbenannt"
     device = Device(token=new_token(), display_name=name, fcm_token=payload.get("fcmToken"))
     session.add(device)
