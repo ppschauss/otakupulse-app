@@ -20,6 +20,12 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Swipes und Matches können viele werden, deshalb BIGINT. SQLite vergibt IDs aber nur bei
+# INTEGER PRIMARY KEY automatisch — ohne diese Variante scheitern die Tests, obwohl der
+# Produktivbetrieb auf Postgres läuft.
+BigId = BigInteger().with_variant(Integer, "sqlite")
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -78,7 +84,7 @@ class Swipe(Base):
     __tablename__ = "swipe"
     __table_args__ = (UniqueConstraint("device_id", "anime_id", name="uq_swipe_device_anime"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
     device_id: Mapped[int] = mapped_column(ForeignKey("device.id", ondelete="CASCADE"), index=True)
     anime_id: Mapped[int] = mapped_column(Integer, index=True)
     direction: Mapped[SwipeDirection] = mapped_column(Enum(SwipeDirection, name="swipe_direction"))
@@ -91,7 +97,7 @@ class Match(Base):
     __tablename__ = "match"
     __table_args__ = (UniqueConstraint("party_id", "anime_id", name="uq_match_party_anime"),)
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigId, primary_key=True)
     party_id: Mapped[int] = mapped_column(ForeignKey("party.id", ondelete="CASCADE"), index=True)
     anime_id: Mapped[int] = mapped_column(Integer, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -2,7 +2,10 @@ package de.pattaku.otakupulse.app.ui.swipe
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import de.pattaku.otakupulse.app.data.DeckRepository
+import de.pattaku.otakupulse.app.data.WatchlistRepository
+import de.pattaku.otakupulse.app.work.SwipeSyncWorker
 import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.domain.DeckBuffer
 import de.pattaku.otakupulse.app.domain.DeckFilter
@@ -20,7 +23,11 @@ data class SwipeUiState(
     val error: String? = null,
 )
 
-class SwipeViewModel(private val repository: DeckRepository) : ViewModel() {
+class SwipeViewModel(
+    private val repository: DeckRepository,
+    private val watchlist: WatchlistRepository,
+    private val appContext: Context,
+) : ViewModel() {
 
     private val buffer = DeckBuffer()
 
@@ -55,9 +62,19 @@ class SwipeViewModel(private val repository: DeckRepository) : ViewModel() {
     }
 
     fun onSwiped(direction: SwipeDirection) {
+        val karte = buffer.top()
         buffer.drop()
         publish()
-        // Was mit dem Swipe passiert (Watchlist, Party-Benachrichtigung), kommt in M3/M4.
+
+        if (karte != null) {
+            viewModelScope.launch {
+                // Erst lokal wirksam machen, dann übertragen — Wischen muss auch
+                // im Funkloch funktionieren.
+                watchlist.record(karte, direction)
+                SwipeSyncWorker.enqueue(appContext)
+            }
+        }
+
         if (buffer.needsMore()) viewModelScope.launch { loadMore() }
     }
 

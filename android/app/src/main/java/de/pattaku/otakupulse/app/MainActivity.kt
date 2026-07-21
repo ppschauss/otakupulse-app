@@ -8,13 +8,22 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Style
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,6 +33,8 @@ import de.pattaku.otakupulse.app.ui.detail.DetailScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
+import de.pattaku.otakupulse.app.ui.watchlist.WatchlistScreen
+import de.pattaku.otakupulse.app.ui.watchlist.WatchlistViewModel
 
 class CompanionApplication : Application() {
     lateinit var container: AppContainer
@@ -43,36 +54,73 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CompanionTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(Modifier.padding(innerPadding)) {
-                        Root(container)
-                    }
-                }
+                Root(container)
             }
         }
     }
 }
 
-/**
- * Vorläufige Navigation: Stapel und Detailansicht.
- * Die Bottom-Navigation (Watchlist, Kalender, Party) kommt mit M3 bis M5 dazu.
- */
+private data class Ziel(val label: String, val icon: ImageVector)
+
+// Kalender und Party kommen mit M4/M5 dazu.
+private val ZIELE = listOf(
+    Ziel("Entdecken", Icons.Default.Style),
+    Ziel("Watchlist", Icons.Default.Bookmark),
+)
+
 @Composable
 private fun Root(container: AppContainer) {
+    var ziel by remember { mutableIntStateOf(0) }
     var detail by remember { mutableStateOf<Anime?>(null) }
-    val viewModel: SwipeViewModel = viewModel(factory = factory(container))
 
     val offen = detail
     if (offen != null) {
         DetailScreen(anime = offen, onBack = { detail = null })
-    } else {
-        SwipeScreen(viewModel = viewModel, onOpenDetail = { detail = it })
+        return
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            NavigationBar {
+                ZIELE.forEachIndexed { index, z ->
+                    NavigationBarItem(
+                        selected = ziel == index,
+                        onClick = { ziel = index },
+                        icon = { Icon(z.icon, contentDescription = z.label) },
+                        label = { Text(z.label) },
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            when (ziel) {
+                0 -> SwipeScreen(
+                    viewModel = viewModel(factory = swipeFactory(container)),
+                    onOpenDetail = { detail = it },
+                )
+                else -> WatchlistScreen(
+                    viewModel = viewModel(factory = watchlistFactory(container)),
+                )
+            }
+        }
     }
 }
 
 /** Manuelle ViewModel-Erzeugung — passend zur manuellen Abhängigkeitsverdrahtung. */
-private fun factory(container: AppContainer) = object : ViewModelProvider.Factory {
+private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        SwipeViewModel(container.deckRepository) as T
+        SwipeViewModel(
+            container.deckRepository,
+            container.watchlistRepository,
+            container.applicationContext,
+        ) as T
+}
+
+private fun watchlistFactory(container: AppContainer) = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        WatchlistViewModel(container.watchlistRepository) as T
 }

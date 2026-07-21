@@ -15,7 +15,8 @@ from . import catalog
 from .auth import current_device, new_token
 from .db import companion_engine, get_session, get_settings
 from .deck_query import DeckFilter
-from .models import Base, Device, Swipe
+from .swipes import record_swipe
+from .models import Base, Device, Swipe, SwipeDirection
 
 app = FastAPI(title="OtakuPulse Companion", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -95,6 +96,34 @@ def deck(
     )
     cards = catalog.fetch_deck(f, max_page_size=get_settings().deck_max_page_size)
     return {"cards": cards, "count": len(cards)}
+
+
+@app.post("/v1/swipes")
+def post_swipes(
+    payload: dict,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Nimmt einen Stapel Swipes entgegen.
+
+    Die App puffert Swipes lokal und schickt sie gebündelt — Wischen funktioniert
+    dadurch auch ohne Netz. Wiederholte Zustellung ist unschädlich.
+    """
+    items = payload.get("swipes") or []
+    matches: list[dict] = []
+    accepted = 0
+
+    for item in items:
+        try:
+            anime_id = int(item["animeId"])
+            direction = SwipeDirection(item["direction"])
+        except (KeyError, ValueError, TypeError):
+            continue  # Kaputte Einzelposten überspringen, den Rest trotzdem annehmen
+        for match in record_swipe(session, device, anime_id, direction):
+            matches.append({"partyId": match.party_id, "animeId": match.anime_id})
+        accepted += 1
+
+    return {"accepted": accepted, "matches": matches}
 
 
 @app.get("/v1/filters")

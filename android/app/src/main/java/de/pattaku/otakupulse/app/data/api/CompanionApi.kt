@@ -32,6 +32,9 @@ interface CompanionApi {
         @Query("offset") offset: Int = 0,
     ): DeckResponse
 
+    @POST("v1/swipes")
+    suspend fun uploadSwipes(@Body body: SwipeUpload): SwipeUploadResponse
+
     @GET("v1/filters")
     suspend fun filters(): FiltersResponse
 }

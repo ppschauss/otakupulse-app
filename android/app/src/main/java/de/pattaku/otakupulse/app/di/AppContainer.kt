@@ -4,6 +4,8 @@ import android.content.Context
 import de.pattaku.otakupulse.app.BuildConfig
 import de.pattaku.otakupulse.app.data.DeckRepository
 import de.pattaku.otakupulse.app.data.TokenStore
+import de.pattaku.otakupulse.app.data.WatchlistRepository
+import de.pattaku.otakupulse.app.data.local.AppDatabase
 import de.pattaku.otakupulse.app.data.api.CompanionApi
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
@@ -15,7 +17,9 @@ import java.util.concurrent.TimeUnit
 /** Manuelle Abhängigkeitsverdrahtung — dieselbe Bauweise wie in WorkTracker. */
 class AppContainer(context: Context) {
 
-    val tokenStore = TokenStore(context.applicationContext)
+    val applicationContext: Context = context.applicationContext
+
+    val tokenStore = TokenStore(applicationContext)
 
     private val json = Json {
         ignoreUnknownKeys = true  // Backend darf Felder ergänzen, ohne alte Apps zu brechen
@@ -44,5 +48,9 @@ class AppContainer(context: Context) {
 
     val api: CompanionApi = retrofit.create(CompanionApi::class.java)
 
+    val database = AppDatabase.build(applicationContext)
+
     val deckRepository = DeckRepository(api, tokenStore)
+
+    val watchlistRepository = WatchlistRepository(database, api)
 }

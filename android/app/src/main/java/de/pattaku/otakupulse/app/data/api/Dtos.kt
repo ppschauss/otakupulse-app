@@ -55,3 +55,15 @@ data class TagDto(val slug: String, val name: String, val category: String? = nu
 
 @Serializable
 data class FiltersResponse(val genres: List<GenreDto>, val tags: List<TagDto>)
+
+@Serializable
+data class SwipeDto(val animeId: Int, val direction: String)
+
+@Serializable
+data class SwipeUpload(val swipes: List<SwipeDto>)
+
+@Serializable
+data class MatchDto(val partyId: Int, val animeId: Int)
+
+@Serializable
+data class SwipeUploadResponse(val accepted: Int, val matches: List<MatchDto> = emptyList())
