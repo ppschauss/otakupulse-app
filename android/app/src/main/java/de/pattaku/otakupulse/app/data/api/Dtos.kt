@@ -1,0 +1,57 @@
+package de.pattaku.otakupulse.app.data.api
+
+import de.pattaku.otakupulse.app.domain.Anime
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class AnimeDto(
+    val id: Int,
+    val anilistId: Int? = null,
+    val slug: String,
+    val title: String,
+    val titleRomaji: String,
+    val description: String? = null,
+    val coverImageUrl: String? = null,
+    val bannerImageUrl: String? = null,
+    val format: String? = null,
+    val status: String? = null,
+    val episodes: Int? = null,
+    val season: String? = null,
+    val seasonYear: Int? = null,
+    val averageScore: Int? = null,
+) {
+    fun toDomain(): Anime = Anime(
+        id = id,
+        anilistId = anilistId,
+        slug = slug,
+        title = title,
+        titleRomaji = titleRomaji,
+        description = description,
+        coverImageUrl = coverImageUrl,
+        bannerImageUrl = bannerImageUrl,
+        format = format,
+        status = status,
+        episodes = episodes,
+        season = season,
+        seasonYear = seasonYear,
+        averageScore = averageScore,
+    )
+}
+
+@Serializable
+data class DeckResponse(val cards: List<AnimeDto>, val count: Int)
+
+@Serializable
+data class DeviceRequest(val displayName: String, val fcmToken: String? = null)
+
+@Serializable
+data class DeviceResponse(val deviceId: Int, val token: String, val displayName: String)
+
+@Serializable
+data class GenreDto(val slug: String, val name: String)
+
+@Serializable
+data class TagDto(val slug: String, val name: String, val category: String? = null)
+
+@Serializable
+data class FiltersResponse(val genres: List<GenreDto>, val tags: List<TagDto>)

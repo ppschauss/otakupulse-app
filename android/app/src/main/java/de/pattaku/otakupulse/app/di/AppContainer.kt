@@ -1,0 +1,48 @@
+package de.pattaku.otakupulse.app.di
+
+import android.content.Context
+import de.pattaku.otakupulse.app.BuildConfig
+import de.pattaku.otakupulse.app.data.DeckRepository
+import de.pattaku.otakupulse.app.data.TokenStore
+import de.pattaku.otakupulse.app.data.api.CompanionApi
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
+
+/** Manuelle Abhängigkeitsverdrahtung — dieselbe Bauweise wie in WorkTracker. */
+class AppContainer(context: Context) {
+
+    val tokenStore = TokenStore(context.applicationContext)
+
+    private val json = Json {
+        ignoreUnknownKeys = true  // Backend darf Felder ergänzen, ohne alte Apps zu brechen
+        explicitNulls = false
+    }
+
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val token = tokenStore.cachedToken()
+            val request = if (token != null) {
+                chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+            } else {
+                chain.request()
+            }
+            chain.proceed(request)
+        }
+        .build()
+
+    private val retrofit = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_BASE_URL)
+        .client(http)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+
+    val api: CompanionApi = retrofit.create(CompanionApi::class.java)
+
+    val deckRepository = DeckRepository(api, tokenStore)
+}

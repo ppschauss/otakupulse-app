@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto Backup sichert Datenbank und Einstellungen in Googles Drive.
+  Wichtig: das Geräte-Token liegt im DataStore und wird mitgesichert — ohne das
+  wäre "nur Party-Code" bei einem Gerätewechsel gleichbedeutend mit Datenverlust.
+-->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="file" path="datastore/" />
+</full-backup-content>

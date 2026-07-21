@@ -1,0 +1,37 @@
+package de.pattaku.otakupulse.app.data.api
+
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Query
+
+/**
+ * Das Backend unter app.otakupulse.de.
+ *
+ * Als Interface geschnitten, damit Tests eine Attrappe einsetzen können, ohne
+ * einen Server zu starten.
+ */
+interface CompanionApi {
+
+    @POST("v1/devices")
+    suspend fun registerDevice(@Body body: DeviceRequest): DeviceResponse
+
+    @GET("v1/deck")
+    suspend fun deck(
+        @Query("genres") genres: List<String> = emptyList(),
+        @Query("tags") tags: List<String> = emptyList(),
+        @Query("providers") providers: List<String> = emptyList(),
+        @Query("languages") languages: List<String> = emptyList(),
+        @Query("formats") formats: List<String> = emptyList(),
+        @Query("yearFrom") yearFrom: Int? = null,
+        @Query("yearTo") yearTo: Int? = null,
+        @Query("minScore") minScore: Int? = null,
+        @Query("sort") sort: String = "popularity",
+        @Query("seed") seed: String? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0,
+    ): DeckResponse
+
+    @GET("v1/filters")
+    suspend fun filters(): FiltersResponse
+}
