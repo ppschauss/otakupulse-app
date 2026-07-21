@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 // Ein gemeinsamer DataStore für Token und Einstellungen — zwei Instanzen auf derselben
 // Datei wären ein Laufzeitfehler.
@@ -41,4 +42,12 @@ class TokenStore(private val context: Context) {
     }
 
     suspend fun displayName(): String? = context.companionDataStore.data.first()[nameKey]
+
+    /** Nur den Anzeigenamen ändern, ohne das Token anzufassen. */
+    suspend fun setzeName(name: String) {
+        context.companionDataStore.edit { it[nameKey] = name }
+    }
+
+    val nameFlow: kotlinx.coroutines.flow.Flow<String> =
+        context.companionDataStore.data.map { it[nameKey] ?: "" }
 }

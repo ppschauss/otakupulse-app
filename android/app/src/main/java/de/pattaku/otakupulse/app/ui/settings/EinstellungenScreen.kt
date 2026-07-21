@@ -15,7 +15,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
@@ -25,6 +27,10 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +46,9 @@ private val MODI = listOf(
 fun EinstellungenScreen(
     modus: ThemeModus,
     onModus: (ThemeModus) -> Unit,
+    name: String,
+    onName: (String) -> Unit,
+    nameMeldung: String?,
     sicherungsMeldung: String?,
     onExport: () -> Unit,
     onImport: () -> Unit,
@@ -67,6 +76,40 @@ fun EinstellungenScreen(
 
         Spacer(Modifier.height(20.dp))
         Column(Modifier.padding(horizontal = 12.dp)) {
+
+        Text("Dein Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "So tauchst du in den Partys deiner Freunde auf — und so steht es unter " +
+                "einem Super-Swipe.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        var entwurf by remember(name) { mutableStateOf(name) }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = entwurf,
+                onValueChange = { entwurf = it.take(30) },
+                label = { Text("Name") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = { onName(entwurf.trim()) },
+                enabled = entwurf.isNotBlank() && entwurf.trim() != name,
+            ) { Text("Speichern") }
+        }
+        nameMeldung?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+
+        Spacer(Modifier.height(28.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(20.dp))
+
         Text("Darstellung", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(10.dp))
 

@@ -73,9 +73,7 @@ class SwipeViewModel(
             _state.value = _state.value.copy(genres = it.genres, tags = it.tags)
         }
         // Partys mitladen: davon hängt ab, ob der Super-Swipe nachfragen muss.
-        runCatching { api.parties().parties }.onSuccess {
-            _state.value = _state.value.copy(partys = it)
-        }
+        ladePartys()
     }
 
     fun setzeFilter(neu: DeckFilter) {
@@ -112,16 +110,34 @@ class SwipeViewModel(
         publish()
 
         if (karte != null) {
-            if (direction == SwipeDirection.SUPER && _state.value.partys.size > 1) {
-                // In mehreren Partys ist „an alle" selten gemeint — nachfragen.
-                // Die Karte ist schon weg, der Stapel stockt also nicht.
-                _state.value = _state.value.copy(superSwipeOffen = karte)
+            if (direction == SwipeDirection.SUPER) {
+                viewModelScope.launch {
+                    // Party-Liste frisch holen: wer zwischendurch einer Party
+                    // beigetreten ist, hätte sonst eine veraltete Auswahl — und der
+                    // Super-Swipe ginge an einen Teil der Leute gar nicht erst raus.
+                    ladePartys()
+                    val partys = _state.value.partys
+                    if (partys.size > 1) {
+                        _state.value = _state.value.copy(superSwipeOffen = karte)
+                    } else {
+                        uebernehme(karte, direction, null)
+                    }
+                }
             } else {
                 uebernehme(karte, direction, null)
             }
         }
 
         if (buffer.needsMore()) viewModelScope.launch { loadMore() }
+    }
+
+    /** Wird auch beim Zurückkehren auf den Stapel aufgerufen. */
+    fun aktualisierePartys() = viewModelScope.launch { ladePartys() }
+
+    private suspend fun ladePartys() {
+        runCatching { api.parties().parties }.onSuccess {
+            _state.value = _state.value.copy(partys = it)
+        }
     }
 
     /** Auswahl bestätigt: Super-Swipe an die gewählten Partys. */

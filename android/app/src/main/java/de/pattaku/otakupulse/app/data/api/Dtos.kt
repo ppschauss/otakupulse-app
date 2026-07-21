@@ -154,3 +154,21 @@ data class AnimeDetailDto(
     val links: List<LinkDto> = emptyList(),
     val related: List<RelatedDto> = emptyList(),
 )
+
+/** Für die Watchlist reicht die Kartenform des Detail-Datensatzes. */
+fun AnimeDetailDto.toDomain() = de.pattaku.otakupulse.app.domain.Anime(
+    id = id,
+    anilistId = null,
+    slug = slug,
+    title = title,
+    titleRomaji = titleRomaji,
+    description = description,
+    coverImageUrl = coverImageUrl,
+    bannerImageUrl = bannerImageUrl,
+    format = format,
+    status = status,
+    episodes = episodes,
+    season = season,
+    seasonYear = seasonYear,
+    averageScore = averageScore,
+)

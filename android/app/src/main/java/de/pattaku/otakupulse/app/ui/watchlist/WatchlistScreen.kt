@@ -16,7 +16,16 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
@@ -47,6 +56,7 @@ private val TABS = listOf(
     WatchStatus.DROPPED to "Abgebrochen",
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchlistScreen(viewModel: WatchlistViewModel, onOeffneAnime: (Int) -> Unit = {}) {
     var tab by remember { mutableIntStateOf(0) }
@@ -85,12 +95,31 @@ fun WatchlistScreen(viewModel: WatchlistViewModel, onOeffneAnime: (Int) -> Unit 
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(gefiltert, key = { it.animeId }) { entry ->
-                    WatchlistZeile(
-                        entry = entry,
-                        onKlick = { onOeffneAnime(entry.animeId) },
-                        onFolgePlus = { viewModel.folgeAbhaken(entry) },
-                        onStatus = { viewModel.setzeStatus(entry.animeId, it) },
+                    // Wischen zum Entfernen — die schnellste Geste für „doch nicht".
+                    // Zusätzlich gibt es ein Papierkorb-Symbol, denn eine Geste
+                    // allein ist nicht auffindbar.
+                    val zustand = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { wert ->
+                            if (wert != SwipeToDismissBoxValue.Settled) {
+                                viewModel.entfernen(entry.animeId)
+                                true
+                            } else {
+                                false
+                            }
+                        },
                     )
+                    SwipeToDismissBox(
+                        state = zustand,
+                        backgroundContent = { LoeschHintergrund() },
+                    ) {
+                        WatchlistZeile(
+                            entry = entry,
+                            onKlick = { onOeffneAnime(entry.animeId) },
+                            onFolgePlus = { viewModel.folgeAbhaken(entry) },
+                            onStatus = { viewModel.setzeStatus(entry.animeId, it) },
+                            onEntfernen = { viewModel.entfernen(entry.animeId) },
+                        )
+                    }
                 }
             }
         }
@@ -110,6 +139,7 @@ private fun WatchlistZeile(
     onKlick: () -> Unit,
     onFolgePlus: () -> Unit,
     onStatus: (WatchStatus) -> Unit,
+    onEntfernen: () -> Unit,
 ) {
     Card(modifier = Modifier.clickable(onClick = onKlick)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -154,7 +184,34 @@ private fun WatchlistZeile(
             if (entry.status == WatchStatus.WATCHING) {
                 TextButton(onClick = onFolgePlus) { Text("+1") }
             }
+            IconButton(onClick = onEntfernen) {
+                Icon(
+                    Icons.Default.DeleteOutline,
+                    contentDescription = "Von der Watchlist entfernen",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+    }
+}
+
+/** Roter Grund mit Papierkorb, der beim Wischen zum Vorschein kommt. */
+@Composable
+private fun LoeschHintergrund() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        Icon(
+            Icons.Default.DeleteOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+        )
     }
 }
 

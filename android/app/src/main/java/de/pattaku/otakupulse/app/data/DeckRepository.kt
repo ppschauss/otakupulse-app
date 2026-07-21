@@ -19,6 +19,17 @@ class DeckRepository(
         tokenStore.save(response.token, response.displayName)
     }
 
+    /**
+     * Setzt den Anzeigenamen — den sehen die anderen in der Party.
+     *
+     * Erst zum Server, dann lokal: schlägt die Übertragung fehl, stimmt sonst die
+     * Anzeige nicht mit dem überein, was die Freunde sehen.
+     */
+    suspend fun setzeAnzeigename(name: String) {
+        api.updateDevice(UpdateDeviceRequest(displayName = name))
+        tokenStore.setzeName(name)
+    }
+
     /** Meldet das FCM-Token, damit Super-Swipes dieses Gerät erreichen. */
     suspend fun meldeFcmToken(token: String) {
         if (tokenStore.token() == null) return  // ohne Registrierung gibt es nichts zu aktualisieren

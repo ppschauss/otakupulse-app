@@ -58,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.pattaku.otakupulse.app.di.AppContainer
 import de.pattaku.otakupulse.app.data.api.AnimeDetailDto
+import de.pattaku.otakupulse.app.data.api.toDomain
 import de.pattaku.otakupulse.app.ui.calendar.CalendarScreen
 import de.pattaku.otakupulse.app.ui.calendar.CalendarViewModel
 import de.pattaku.otakupulse.app.ui.detail.DetailScreen
@@ -218,6 +219,16 @@ private fun Root(
     val meldungenVm: MeldungenViewModel = viewModel(factory = meldungenFactory(container))
     val ungelesen by meldungenVm.ungelesen.collectAsStateWithLifecycle()
 
+    val name by container.tokenStore.nameFlow.collectAsStateWithLifecycle("")
+    var nameMeldung by remember { mutableStateOf<String?>(null) }
+
+    // Steht der offene Titel auf der Watchlist? Bestimmt den Knopf in der Detailansicht.
+    var aufWatchlist by remember { mutableStateOf(false) }
+    LaunchedEffect(detail?.id) {
+        val id = detail?.id ?: return@LaunchedEffect
+        aufWatchlist = container.watchlistRepository.enthaelt(id)
+    }
+
     // Detailansicht aus Watchlist oder Meldung: dort liegt nur die ID vor,
     // der vollständige Titel muss nachgeladen werden.
     LaunchedEffect(ladeId) {
@@ -232,6 +243,17 @@ private fun Root(
             anime = offen,
             onBack = { detail = null },
             onOeffneAnime = { detail = null; ladeId = it },
+            aufWatchlist = aufWatchlist,
+            onWatchlist = { merken ->
+                aufWatchlist = merken
+                bereich.launch {
+                    if (merken) {
+                        container.watchlistRepository.hinzufuegen(offen.toDomain())
+                    } else {
+                        container.watchlistRepository.remove(offen.id)
+                    }
+                }
+            },
         )
         return
     }
@@ -240,6 +262,16 @@ private fun Root(
         EinstellungenScreen(
             modus = modus,
             onModus = { neu -> bereich.launch { container.themeStore.setze(neu) } },
+            name = name,
+            onName = { neu ->
+                bereich.launch {
+                    nameMeldung = runCatching {
+                        container.deckRepository.setzeAnzeigename(neu)
+                        "Gespeichert."
+                    }.getOrElse { "Konnte nicht gespeichert werden: ${it.message}" }
+                }
+            },
+            nameMeldung = nameMeldung,
             sicherungsMeldung = sicherungsMeldung,
             onExport = onExport,
             onImport = onImport,
@@ -306,10 +338,13 @@ private fun Root(
                     Modifier.widthIn(max = breite.inhaltsBreite),
                 ) {
             when (ziel) {
-                0 -> SwipeScreen(
-                    viewModel = viewModel(factory = swipeFactory(container)),
-                    onOpenDetail = { ladeId = it.id },
-                )
+                0 -> {
+                    val swipeVm: SwipeViewModel = viewModel(factory = swipeFactory(container))
+                    // Beim Zurückkehren auf den Stapel die Partys auffrischen —
+                    // sonst arbeitet der Super-Swipe mit dem Stand vom App-Start.
+                    LaunchedEffect(ziel) { swipeVm.aktualisierePartys() }
+                    SwipeScreen(viewModel = swipeVm, onOpenDetail = { ladeId = it.id })
+                }
                 1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
                     onOeffneAnime = { ladeId = it },

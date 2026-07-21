@@ -24,7 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +83,8 @@ fun DetailScreen(
     anime: AnimeDetailDto,
     onBack: () -> Unit,
     onOeffneAnime: (Int) -> Unit = {},
+    aufWatchlist: Boolean = false,
+    onWatchlist: (Boolean) -> Unit = {},
 ) {
     val uri = LocalUriHandler.current
 
@@ -90,6 +96,29 @@ fun DetailScreen(
         Kopf(anime, onBack)
 
         Column(Modifier.padding(horizontal = 20.dp)) {
+            Spacer(Modifier.height(16.dp))
+
+            // Gemerkt-Schalter direkt unter dem Kopf: die häufigste Handlung hier.
+            if (aufWatchlist) {
+                OutlinedButton(
+                    onClick = { onWatchlist(false) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Auf der Watchlist — entfernen")
+                }
+            } else {
+                Button(
+                    onClick = { onWatchlist(true) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Zur Watchlist")
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
 
             // Kernangaben in einer Zeile — was man vor dem Anschauen wissen will.

@@ -78,4 +78,14 @@ class WatchlistRepository(
         db.watchlist().setProgress(animeId, progress.coerceAtLeast(0))
 
     suspend fun remove(animeId: Int) = db.watchlist().remove(animeId)
+
+    /** Steht dieser Titel auf der Watchlist? Für den Knopf in der Detailansicht. */
+    suspend fun enthaelt(animeId: Int): Boolean = db.watchlist().find(animeId) != null
+
+    /** Nimmt einen Titel aus der Detailansicht heraus auf. */
+    suspend fun hinzufuegen(anime: Anime) {
+        if (db.watchlist().find(anime.id) == null) {
+            db.watchlist().upsert(WatchlistEntry.from(anime))
+        }
+    }
 }
