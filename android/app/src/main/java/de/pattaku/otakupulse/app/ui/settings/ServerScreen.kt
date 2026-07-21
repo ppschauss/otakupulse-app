@@ -29,17 +29,13 @@ private val VORSCHLAEGE = listOf(
     "http://100.87.113.82:3005" to "Tailscale",
 )
 
+/** Server-Einstellung als Abschnitt innerhalb der Einstellungen. */
 @Composable
-fun ServerScreen(viewModel: ServerViewModel) {
+fun ServerAbschnitt(viewModel: ServerViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-    ) {
-        Text("Server", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Column(Modifier.fillMaxWidth()) {
+        Text("Server", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
         Text(
             "Wo läuft das Backend? Zu Hause geht die WLAN-Adresse, von unterwegs die " +

@@ -18,8 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import de.pattaku.otakupulse.app.ui.theme.MarkenLadeanzeige
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -67,7 +67,7 @@ fun PartyScreen(viewModel: PartyViewModel) {
         }
 
         if (state.laden) {
-            item { Box(Modifier.fillMaxWidth(), Alignment.Center) { CircularProgressIndicator() } }
+            item { Box(Modifier.fillMaxWidth(), Alignment.Center) { MarkenLadeanzeige() } }
         }
 
         items(state.parties, key = { it.id }) { party -> PartyKarte(party) }

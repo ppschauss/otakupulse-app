@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -39,6 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.domain.SwipeDirection
 import de.pattaku.otakupulse.app.domain.anzahlAktiv
+import androidx.compose.ui.draw.clip
+import de.pattaku.otakupulse.app.ui.theme.SchimmerFlaeche
 import de.pattaku.otakupulse.app.ui.theme.SwipeLike
 import de.pattaku.otakupulse.app.ui.theme.SwipeNope
 import de.pattaku.otakupulse.app.ui.theme.SwipeSuper
@@ -89,7 +90,12 @@ fun SwipeScreen(
             contentAlignment = Alignment.Center,
         ) {
             when {
-                state.loading -> CircularProgressIndicator()
+                state.loading -> SchimmerFlaeche(
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.68f)
+                        .clip(MaterialTheme.shapes.extraLarge),
+                )
 
                 state.error != null -> Hinweis(
                     titel = "Da klemmt etwas",

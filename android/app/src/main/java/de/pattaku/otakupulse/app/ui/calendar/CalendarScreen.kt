@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import de.pattaku.otakupulse.app.ui.theme.MarkenLadeanzeige
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,7 +43,7 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when {
-        state.laden -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+        state.laden -> Box(Modifier.fillMaxSize(), Alignment.Center) { MarkenLadeanzeige() }
 
         state.fehler != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
             Text(
