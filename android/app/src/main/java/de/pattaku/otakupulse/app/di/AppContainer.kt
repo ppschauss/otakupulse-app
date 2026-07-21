@@ -2,6 +2,7 @@ package de.pattaku.otakupulse.app.di
 
 import android.content.Context
 import de.pattaku.otakupulse.app.BuildConfig
+import de.pattaku.otakupulse.app.data.AiringRepository
 import de.pattaku.otakupulse.app.data.DeckRepository
 import de.pattaku.otakupulse.app.data.SettingsStore
 import de.pattaku.otakupulse.app.data.TokenStore
@@ -69,4 +70,6 @@ class AppContainer(context: Context) {
     val deckRepository = DeckRepository(api, tokenStore)
 
     val watchlistRepository = WatchlistRepository(database, api)
+
+    val airingRepository = AiringRepository(api, database, settingsStore)
 }

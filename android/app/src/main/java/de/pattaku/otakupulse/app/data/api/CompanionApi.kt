@@ -2,6 +2,7 @@ package de.pattaku.otakupulse.app.data.api
 
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -19,6 +20,9 @@ interface CompanionApi {
 
     @POST("v1/devices")
     suspend fun registerDevice(@Body body: DeviceRequest): DeviceResponse
+
+    @PATCH("v1/devices/me")
+    suspend fun updateDevice(@Body body: UpdateDeviceRequest): UpdateDeviceResponse
 
     @GET("v1/deck")
     suspend fun deck(
@@ -47,6 +51,13 @@ interface CompanionApi {
 
     @POST("v1/parties/join")
     suspend fun joinParty(@Body body: JoinPartyRequest): PartyDto
+
+    @GET("v1/airing")
+    suspend fun airing(
+        @Query("days") days: Int = 7,
+        @Query("back") back: Int = 0,
+        @Query("onlyMine") onlyMine: Boolean = false,
+    ): AiringResponse
 
     @GET("v1/filters")
     suspend fun filters(): FiltersResponse

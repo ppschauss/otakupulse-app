@@ -33,6 +33,12 @@ interface WatchlistDao {
     @Query("UPDATE watchlist_entry SET status = :status WHERE animeId = :animeId")
     suspend fun setStatus(animeId: Int, status: WatchStatus)
 
+    @Query("UPDATE watchlist_entry SET hasUnseenEpisode = 1 WHERE animeId IN (:animeIds)")
+    suspend fun markUnseen(animeIds: List<Int>)
+
+    @Query("SELECT animeId FROM watchlist_entry")
+    suspend fun allIds(): List<Int>
+
     @Query("DELETE FROM watchlist_entry WHERE animeId = :animeId")
     suspend fun remove(animeId: Int)
 }

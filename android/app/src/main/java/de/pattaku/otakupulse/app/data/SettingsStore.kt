@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.pattaku.otakupulse.app.BuildConfig
+import de.pattaku.otakupulse.app.data.companionDataStore
 import kotlinx.coroutines.flow.first
 
 /**
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.first
 class SettingsStore(private val context: Context) {
 
     private val urlKey = stringPreferencesKey("server_url")
+    private val abgleichKey = stringPreferencesKey("last_episode_check")
 
     @Volatile
     private var cached: String = BuildConfig.API_BASE_URL
@@ -32,6 +34,17 @@ class SettingsStore(private val context: Context) {
         val normalized = normalize(url)
         cached = normalized
         context.companionDataStore.edit { it[urlKey] = normalized }
+    }
+
+    /** Zeitpunkt des letzten Folgen-Abgleichs; beim ersten Lauf zwei Tage zurück. */
+    suspend fun letzterFolgenAbgleich(): java.time.Instant {
+        val gespeichert = context.companionDataStore.data.first()[abgleichKey]
+        return gespeichert?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
+            ?: java.time.Instant.now().minusSeconds(2 * 24 * 3600)
+    }
+
+    suspend fun setzeLetztenFolgenAbgleich(zeitpunkt: java.time.Instant) {
+        context.companionDataStore.edit { it[abgleichKey] = zeitpunkt.toString() }
     }
 
     companion object {

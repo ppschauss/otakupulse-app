@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.Icon
@@ -35,6 +36,8 @@ import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.ui.detail.DetailScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
+import de.pattaku.otakupulse.app.ui.calendar.CalendarScreen
+import de.pattaku.otakupulse.app.ui.calendar.CalendarViewModel
 import de.pattaku.otakupulse.app.ui.party.PartyScreen
 import de.pattaku.otakupulse.app.ui.party.PartyViewModel
 import de.pattaku.otakupulse.app.ui.settings.ServerScreen
@@ -56,6 +59,7 @@ class CompanionApplication : Application() {
             container.settingsStore.load()
             container.tokenStore.token()
         }
+        de.pattaku.otakupulse.app.work.EpisodeCheckWorker.planen(this)
     }
 }
 
@@ -79,6 +83,7 @@ private data class Ziel(val label: String, val icon: ImageVector)
 private val ZIELE = listOf(
     Ziel("Entdecken", Icons.Default.Style),
     Ziel("Watchlist", Icons.Default.Bookmark),
+    Ziel("Kalender", Icons.Default.CalendarMonth),
     Ziel("Party", Icons.Default.Groups),
     Ziel("Server", Icons.Default.Dns),
 )
@@ -118,7 +123,10 @@ private fun Root(container: AppContainer) {
                 1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
                 )
-                2 -> PartyScreen(
+                2 -> CalendarScreen(
+                    viewModel = viewModel(factory = calendarFactory(container)),
+                )
+                3 -> PartyScreen(
                     viewModel = viewModel(factory = partyFactory(container)),
                 )
                 else -> ServerScreen(
@@ -138,6 +146,12 @@ private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.F
             container.watchlistRepository,
             container.applicationContext,
         ) as T
+}
+
+private fun calendarFactory(container: AppContainer) = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        CalendarViewModel(container.airingRepository) as T
 }
 
 private fun partyFactory(container: AppContainer) = object : ViewModelProvider.Factory {

@@ -67,3 +67,55 @@ def fetch_by_ids(ids: list[int]) -> list[dict]:
         rows = conn.execute(text(sql), {"ids": ids}).fetchall()
     nach_id = {r._mapping["id"]: _card(r) for r in rows}
     return [nach_id[i] for i in ids if i in nach_id]
+
+
+AIRING_SQL = """
+SELECT
+    e.anime_id,
+    e.number       AS episode,
+    e.air_date,
+    a.slug,
+    a.title_german,
+    a.title_english,
+    a.title_romaji,
+    a.cover_image_url,
+    a.format::text AS format
+FROM episodes e
+JOIN anime a ON a.id = e.anime_id
+WHERE e.air_date >= :von
+  AND e.air_date < :bis
+  AND a.is_hentai = false
+  {nur_ids}
+ORDER BY e.air_date, a.id
+LIMIT 500
+"""
+
+
+def fetch_airing(von, bis, anime_ids: list[int] | None = None) -> list[dict]:
+    """Ausstrahlungstermine aus der OtakuPulse-Datenbank.
+
+    Die Termine stehen dort bereits und werden vom täglichen Sync der Website
+    frisch gehalten — AniList muss dafür nicht angefragt werden.
+    """
+    params: dict = {"von": von, "bis": bis}
+    nur_ids = ""
+    if anime_ids:
+        nur_ids = "AND e.anime_id = ANY(:ids)"
+        params["ids"] = anime_ids
+
+    with catalog_engine.connect() as conn:
+        rows = conn.execute(text(AIRING_SQL.format(nur_ids=nur_ids)), params).fetchall()
+
+    ergebnis = []
+    for r in rows:
+        m = r._mapping
+        ergebnis.append({
+            "animeId": m["anime_id"],
+            "episode": int(m["episode"]) if m["episode"] is not None else None,
+            "airingAt": m["air_date"].isoformat() if m["air_date"] else None,
+            "slug": m["slug"],
+            "title": m["title_german"] or m["title_english"] or m["title_romaji"],
+            "coverImageUrl": m["cover_image_url"],
+            "format": m["format"],
+        })
+    return ergebnis

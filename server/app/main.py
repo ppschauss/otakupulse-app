@@ -7,6 +7,8 @@ auf die OtakuPulse-Daten.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -15,10 +17,17 @@ from . import catalog
 from .auth import current_device, new_token
 from .db import companion_engine, get_session, get_settings
 from .deck_query import DeckFilter
-from .swipes import backfill_matches_for_new_member, generate_join_code, record_swipe
+from .push import Pusher
+from .swipes import (
+    backfill_matches_for_new_member,
+    generate_join_code,
+    party_members_to_notify,
+    record_swipe,
+)
 from .models import Base, Device, Match, Party, PartyMember, Swipe, SwipeDirection
 
 app = FastAPI(title="OtakuPulse Companion", docs_url=None, redoc_url=None, openapi_url=None)
+pusher = Pusher(get_settings())
 
 
 @app.on_event("startup")
@@ -211,7 +220,59 @@ def post_swipes(
             matches.append({"partyId": match.party_id, "animeId": match.anime_id})
         accepted += 1
 
+        if direction is SwipeDirection.SUPER:
+            _melde_super_swipe(session, device, anime_id)
+
     return {"accepted": accepted, "matches": matches}
+
+
+def _melde_super_swipe(session: Session, device: Device, anime_id: int) -> None:
+    """Schickt den Super-Swipe an alle anderen in den gemeinsamen Partys."""
+    empfaenger = party_members_to_notify(session, device)
+    if not empfaenger:
+        return
+    karten = catalog.fetch_by_ids([anime_id])
+    titel = karten[0]["title"] if karten else "ein Anime"
+    pusher.send(
+        session,
+        empfaenger,
+        titel=f"{device.display_name} schwärmt von etwas",
+        text=f"{titel} — unbedingt anschauen!",
+        daten={"animeId": anime_id, "type": "super_swipe"},
+    )
+
+
+@app.get("/v1/airing")
+def airing(
+    days: int = 7,
+    back: int = 0,
+    onlyMine: bool = False,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Ausstrahlungstermine — für den Wochenkalender und die Folgen-Prüfung.
+
+    `back` blickt zurück: die App fragt so nach Folgen, die seit dem letzten
+    Abgleich erschienen sind. `onlyMine` beschränkt auf gewischte Titel.
+    """
+    jetzt = datetime.now(timezone.utc)
+    von = jetzt - timedelta(days=max(0, min(back, 30)))
+    bis = jetzt + timedelta(days=max(1, min(days, 31)))
+
+    ids = None
+    if onlyMine:
+        ids = list(
+            session.scalars(
+                select(Swipe.anime_id).where(
+                    Swipe.device_id == device.id,
+                    Swipe.direction.in_([SwipeDirection.RIGHT, SwipeDirection.SUPER]),
+                )
+            )
+        )
+        if not ids:
+            return {"airing": []}
+
+    return {"airing": catalog.fetch_airing(von, bis, ids)}
 
 
 @app.get("/v1/filters")

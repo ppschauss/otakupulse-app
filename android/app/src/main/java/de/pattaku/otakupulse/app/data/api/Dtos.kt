@@ -91,3 +91,21 @@ data class CreatePartyRequest(val name: String)
 
 @Serializable
 data class JoinPartyRequest(val joinCode: String)
+
+@Serializable
+data class AiringDto(
+    val animeId: Int,
+    val episode: Int? = null,
+    val airingAt: String? = null,
+    val title: String,
+    val coverImageUrl: String? = null,
+)
+
+@Serializable
+data class AiringResponse(val airing: List<AiringDto>)
+
+@Serializable
+data class UpdateDeviceRequest(val displayName: String? = null, val fcmToken: String? = null)
+
+@Serializable
+data class UpdateDeviceResponse(val deviceId: Int, val displayName: String)
