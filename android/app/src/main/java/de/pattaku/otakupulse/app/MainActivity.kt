@@ -10,6 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -24,6 +27,10 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -32,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
@@ -60,7 +69,11 @@ import de.pattaku.otakupulse.app.ui.settings.EinstellungenScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
+import de.pattaku.otakupulse.app.ui.theme.Breite
 import de.pattaku.otakupulse.app.ui.theme.IntroScreen
+import de.pattaku.otakupulse.app.ui.theme.LocalBreite
+import de.pattaku.otakupulse.app.ui.theme.inhaltsBreite
+import de.pattaku.otakupulse.app.ui.theme.zuBreite
 import de.pattaku.otakupulse.app.ui.theme.ThemeModus
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistScreen
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistViewModel
@@ -122,6 +135,7 @@ class MainActivity : ComponentActivity() {
     private val frageBenachrichtigung =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* Ablehnen ist ok */ }
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -138,8 +152,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val modus by container.themeStore.modus.collectAsStateWithLifecycle(ThemeModus.SYSTEM)
+            // Aus der Fensterbreite, nicht aus dem Gerätemodell: ein Tablet im
+            // geteilten Bildschirm ist so schmal wie ein Handy.
+            val breite = calculateWindowSizeClass(this).widthSizeClass.zuBreite()
             var introLaeuft by remember { mutableStateOf(true) }
 
+            CompositionLocalProvider(LocalBreite provides breite) {
             CompanionTheme(modus = modus) {
                 // Surface malt den Hintergrund des Farbschemas. Ohne diese Ebene
                 // scheint bei Bildschirmen ausserhalb des Scaffold der
@@ -166,6 +184,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }
@@ -229,6 +248,9 @@ private fun Root(
         return
     }
 
+    val breite = LocalBreite.current
+    val schiene = breite != Breite.KOMPAKT
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -242,27 +264,47 @@ private fun Root(
             )
         },
         bottomBar = {
-            NavigationBar {
-                ZIELE.forEachIndexed { index, z ->
-                    NavigationBarItem(
-                        selected = ziel == index,
-                        onClick = { ziel = index },
-                        icon = {
-                            if (z.label == "Meldungen" && ungelesen > 0) {
-                                BadgedBox(badge = { Badge { Text("$ungelesen") } }) {
-                                    Icon(z.icon, contentDescription = z.label)
-                                }
-                            } else {
-                                Icon(z.icon, contentDescription = z.label)
-                            }
-                        },
-                        label = { Text(z.label) },
-                    )
+            // Ab mittlerer Breite übernimmt die Schiene an der Seite; eine Leiste
+            // unten wäre dort quer über den halben Bildschirm gezogen.
+            if (!schiene) {
+                NavigationBar {
+                    ZIELE.forEachIndexed { index, z ->
+                        NavigationBarItem(
+                            selected = ziel == index,
+                            onClick = { ziel = index },
+                            icon = { ZielSymbol(z, ungelesen) },
+                            label = { Text(z.label) },
+                        )
+                    }
                 }
             }
         },
     ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
+        Row(Modifier.padding(innerPadding)) {
+            if (schiene) {
+                NavigationRail {
+                    ZIELE.forEachIndexed { index, z ->
+                        NavigationRailItem(
+                            selected = ziel == index,
+                            onClick = { ziel = index },
+                            icon = { ZielSymbol(z, ungelesen) },
+                            label = { Text(z.label) },
+                        )
+                    }
+                }
+            }
+            Box(
+                Modifier
+                    // weight statt fillMaxWidth: die Schiene links behält ihren Platz.
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Box(
+                    // Auf breiten Anzeigen mittig begrenzen — über die volle Breite
+                    // gesetzter Text verliert beim Zeilenwechsel den Anschluss.
+                    Modifier.widthIn(max = breite.inhaltsBreite),
+                ) {
             when (ziel) {
                 0 -> SwipeScreen(
                     viewModel = viewModel(factory = swipeFactory(container)),
@@ -282,8 +324,21 @@ private fun Root(
                     viewModel = meldungenVm,
                     onOeffneAnime = { ladeId = it },
                 )
+                }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ZielSymbol(z: Ziel, ungelesen: Int) {
+    if (z.label == "Meldungen" && ungelesen > 0) {
+        BadgedBox(badge = { Badge { Text("$ungelesen") } }) {
+            Icon(z.icon, contentDescription = z.label)
+        }
+    } else {
+        Icon(z.icon, contentDescription = z.label)
     }
 }
 

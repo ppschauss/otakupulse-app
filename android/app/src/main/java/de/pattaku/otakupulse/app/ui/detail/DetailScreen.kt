@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import de.pattaku.otakupulse.app.data.api.AnimeDetailDto
 import de.pattaku.otakupulse.app.data.api.RelatedDto
+import de.pattaku.otakupulse.app.ui.theme.Breite
+import de.pattaku.otakupulse.app.ui.theme.LocalBreite
 
 /** Deutsche Beschriftungen für die Enum-Werte aus der Datenbank. */
 private val FORMAT = mapOf(
@@ -294,9 +296,10 @@ private fun LinkChips(links: List<de.pattaku.otakupulse.app.data.api.LinkDto>, o
 
 @Composable
 private fun VerwandteKarte(verwandt: RelatedDto, onKlick: () -> Unit) {
+    val kachel = if (LocalBreite.current == Breite.KOMPAKT) 110.dp else 140.dp
     Column(
         Modifier
-            .width(110.dp)
+            .width(kachel)
             .clickable(onClick = onKlick),
     ) {
         AsyncImage(
@@ -304,7 +307,7 @@ private fun VerwandteKarte(verwandt: RelatedDto, onKlick: () -> Unit) {
             contentDescription = verwandt.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(width = 110.dp, height = 155.dp)
+                .size(width = kachel, height = kachel * 1.41f)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         )

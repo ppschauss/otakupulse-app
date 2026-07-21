@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import de.pattaku.otakupulse.app.data.api.PartyDto
+import de.pattaku.otakupulse.app.ui.theme.Breite
+import de.pattaku.otakupulse.app.ui.theme.LocalBreite
 
 @Composable
 fun PartyScreen(viewModel: PartyViewModel) {
@@ -253,15 +255,17 @@ private fun PartyKarte(
             } else {
                 Text("Matches (${party.matches.size})", fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
+                // Grössere Kacheln, wo Platz ist — Cover leben von ihrer Fläche.
+                val kachel = if (LocalBreite.current == Breite.KOMPAKT) 84.dp else 108.dp
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(party.matches, key = { it.id }) { anime ->
-                        Column(Modifier.width(84.dp)) {
+                        Column(Modifier.width(kachel)) {
                             AsyncImage(
                                 model = anime.coverImageUrl,
                                 contentDescription = anime.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(width = 84.dp, height = 118.dp)
+                                    .size(width = kachel, height = kachel * 1.4f)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant),
                             )

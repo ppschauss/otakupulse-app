@@ -2,6 +2,9 @@ package de.pattaku.otakupulse.app.ui.swipe
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,7 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.pattaku.otakupulse.app.ui.theme.LocalBreite
+import de.pattaku.otakupulse.app.ui.theme.kartenBreite
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.domain.SwipeDirection
@@ -51,6 +57,7 @@ fun SwipeScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val breite = LocalBreite.current
     var filterOffen by remember { mutableStateOf(false) }
 
     state.superSwipeOffen?.let { karte ->
@@ -92,18 +99,31 @@ fun SwipeScreen(
             }
         }
 
-        Box(
+        // BoxWithConstraints statt fester Seitenverhältnisse: die Karte bekommt die
+        // Grösse, die wirklich übrig ist. Vorher rechnete aspectRatio() die Höhe aus
+        // der Breite und schob damit auf schmalen Geräten die Aktionsleiste aus dem Bild.
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
+            val platzHoehe = maxHeight
+            val platzBreite = maxWidth
+            val obergrenze = breite.kartenBreite
+            val kartenBreite = minOf(
+                if (obergrenze == Dp.Unspecified) platzBreite else obergrenze,
+                platzBreite,
+                // Aus der Höhe zurückgerechnet, damit die Karte nie höher wird als der Platz.
+                platzHoehe * KARTEN_VERHAELTNIS,
+            )
+            val kartenModifier = Modifier
+                .width(kartenBreite)
+                .height(kartenBreite / KARTEN_VERHAELTNIS)
+
             when {
                 state.loading -> SchimmerFlaeche(
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(0.68f)
-                        .clip(MaterialTheme.shapes.extraLarge),
+                    kartenModifier.clip(MaterialTheme.shapes.extraLarge),
                 )
 
                 state.error != null -> Hinweis(
@@ -129,9 +149,14 @@ fun SwipeScreen(
                             anime = anime,
                             onSwiped = { richtung -> viewModel.onSwiped(richtung) },
                             onTap = { onOpenDetail(anime) },
-                            modifier = Modifier
-                                .fillMaxWidth(if (istOben) 1f else 0.95f)
-                                .aspectRatio(0.68f),
+                            modifier = if (istOben) {
+                                kartenModifier
+                            } else {
+                                // Die Karten darunter minimal kleiner — das erzeugt Tiefe.
+                                Modifier
+                                    .width(kartenBreite * 0.95f)
+                                    .height(kartenBreite / KARTEN_VERHAELTNIS * 0.95f)
+                            },
                         )
                     }
                 }
@@ -148,6 +173,9 @@ fun SwipeScreen(
         }
     }
 }
+
+/** Verhältnis Breite zu Höhe der Karte — dieselbe Form wie ein Anime-Cover. */
+private const val KARTEN_VERHAELTNIS = 0.68f
 
 /** Knöpfe als Alternative zum Wischen — einhändig und barrierefreundlicher. */
 @Composable

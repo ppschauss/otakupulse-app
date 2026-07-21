@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -62,7 +62,7 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
         }
 
         else -> LazyColumn(
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             state.tage.forEach { tag ->
@@ -76,7 +76,10 @@ fun CalendarScreen(viewModel: CalendarViewModel) {
                     )
                     HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 }
-                items(tag.folgen, key = { "${tag.datum}-${it.animeId}-${it.episode}" }) { folge ->
+                // Schlüssel mit laufender Nummer: doppelte Schlüssel lassen Compose
+                // hart abstürzen, und fehlerhafte Quelldaten dürfen die App nicht
+                // umbringen. Der Server entdoppelt zusätzlich.
+                itemsIndexed(tag.folgen) { index, folge ->
                     FolgenZeile(folge)
                 }
             }

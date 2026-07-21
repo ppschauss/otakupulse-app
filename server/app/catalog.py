@@ -69,8 +69,12 @@ def fetch_by_ids(ids: list[int]) -> list[dict]:
     return [nach_id[i] for i in ids if i in nach_id]
 
 
+# DISTINCT ON entfernt Dubletten: in der OtakuPulse-Datenbank existieren einzelne
+# Episoden doppelt, weil sich ein Slug zwischen zwei Importen geändert hat. Ohne das
+# liefert der Kalender denselben Eintrag zweimal — und Compose bricht bei doppelten
+# Listenschlüsseln hart ab.
 AIRING_SQL = """
-SELECT
+SELECT DISTINCT ON (e.anime_id, e.number)
     e.anime_id,
     e.number       AS episode,
     e.air_date,
@@ -86,8 +90,7 @@ WHERE e.air_date >= :von
   AND e.air_date < :bis
   AND a.is_hentai = false
   {nur_ids}
-ORDER BY e.air_date, a.id
-LIMIT 500
+ORDER BY e.anime_id, e.number, e.id
 """
 
 
@@ -103,8 +106,14 @@ def fetch_airing(von, bis, anime_ids: list[int] | None = None) -> list[dict]:
         nur_ids = "AND e.anime_id = ANY(:ids)"
         params["ids"] = anime_ids
 
+    # Sortierung nach Zeit erst nach dem Entdoppeln — DISTINCT ON verlangt, dass die
+    # ORDER BY-Liste mit den unterschiedenen Spalten beginnt.
+    sql = (
+        "SELECT * FROM (" + AIRING_SQL.format(nur_ids=nur_ids) + ") d"
+        " ORDER BY d.air_date, d.anime_id LIMIT 500"
+    )
     with catalog_engine.connect() as conn:
-        rows = conn.execute(text(AIRING_SQL.format(nur_ids=nur_ids)), params).fetchall()
+        rows = conn.execute(text(sql), params).fetchall()
 
     ergebnis = []
     for r in rows:

@@ -12,8 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
@@ -75,9 +76,13 @@ fun WatchlistScreen(viewModel: WatchlistViewModel, onOeffneAnime: (Int) -> Unit 
                 )
             }
         } else {
-            LazyColumn(
+            // Auf breiten Anzeigen mehrspaltig: eine einzelne Spalte Karten mit je
+            // 90 % Leerraum daneben sieht nach vergessenem Layout aus.
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 340.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(gefiltert, key = { it.animeId }) { entry ->
                     WatchlistZeile(
