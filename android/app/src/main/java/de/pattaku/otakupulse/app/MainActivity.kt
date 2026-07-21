@@ -354,6 +354,7 @@ private fun Root(
                 )
                 3 -> PartyScreen(
                     viewModel = viewModel(factory = partyFactory(container)),
+                    onOeffneAnime = { ladeId = it },
                 )
                 else -> MeldungenScreen(
                     viewModel = meldungenVm,

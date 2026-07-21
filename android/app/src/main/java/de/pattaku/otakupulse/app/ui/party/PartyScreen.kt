@@ -1,6 +1,7 @@
 package de.pattaku.otakupulse.app.ui.party
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +52,7 @@ import de.pattaku.otakupulse.app.ui.theme.Breite
 import de.pattaku.otakupulse.app.ui.theme.LocalBreite
 
 @Composable
-fun PartyScreen(viewModel: PartyViewModel) {
+fun PartyScreen(viewModel: PartyViewModel, onOeffneAnime: (Int) -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
@@ -83,6 +84,7 @@ fun PartyScreen(viewModel: PartyViewModel) {
         items(state.parties, key = { it.id }) { party ->
             PartyKarte(
                 party = party,
+                onOeffneAnime = onOeffneAnime,
                 onUmbenennen = { neu -> viewModel.umbenennen(party.id, neu) },
                 onLoeschen = { viewModel.loeschen(party.id) },
                 onVerlassen = { viewModel.verlassen(party.id) },
@@ -144,6 +146,7 @@ fun PartyScreen(viewModel: PartyViewModel) {
 @Composable
 private fun PartyKarte(
     party: PartyDto,
+    onOeffneAnime: (Int) -> Unit,
     onUmbenennen: (String) -> Unit,
     onLoeschen: () -> Unit,
     onVerlassen: () -> Unit,
@@ -259,7 +262,11 @@ private fun PartyKarte(
                 val kachel = if (LocalBreite.current == Breite.KOMPAKT) 84.dp else 108.dp
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(party.matches, key = { it.id }) { anime ->
-                        Column(Modifier.width(kachel)) {
+                        Column(
+                            Modifier
+                                .width(kachel)
+                                .clickable { onOeffneAnime(anime.id) },
+                        ) {
                             AsyncImage(
                                 model = anime.coverImageUrl,
                                 contentDescription = anime.title,
