@@ -7,7 +7,7 @@ auf die OtakuPulse-Daten.
 """
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -15,8 +15,8 @@ from . import catalog
 from .auth import current_device, new_token
 from .db import companion_engine, get_session, get_settings
 from .deck_query import DeckFilter
-from .swipes import record_swipe
-from .models import Base, Device, Swipe, SwipeDirection
+from .swipes import backfill_matches_for_new_member, generate_join_code, record_swipe
+from .models import Base, Device, Match, Party, PartyMember, Swipe, SwipeDirection
 
 app = FastAPI(title="OtakuPulse Companion", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -96,6 +96,94 @@ def deck(
     )
     cards = catalog.fetch_deck(f, max_page_size=get_settings().deck_max_page_size)
     return {"cards": cards, "count": len(cards)}
+
+
+def _party_payload(session: Session, party: Party, device: Device) -> dict:
+    mitglieder = session.execute(
+        select(Device).join(PartyMember, PartyMember.device_id == Device.id)
+        .where(PartyMember.party_id == party.id)
+    ).scalars().all()
+    match_ids = list(session.scalars(
+        select(Match.anime_id).where(Match.party_id == party.id).order_by(Match.created_at.desc())
+    ))
+    return {
+        "id": party.id,
+        "name": party.name,
+        "joinCode": party.join_code,
+        "members": [
+            {"id": m.id, "displayName": m.display_name, "isMe": m.id == device.id}
+            for m in mitglieder
+        ],
+        "matches": catalog.fetch_by_ids(match_ids),
+    }
+
+
+@app.get("/v1/parties")
+def list_parties(
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Nur die eigenen Partys — fremde sind nicht auflistbar."""
+    ids = list(session.scalars(select(PartyMember.party_id).where(PartyMember.device_id == device.id)))
+    if not ids:
+        return {"parties": []}
+    parties = session.scalars(select(Party).where(Party.id.in_(ids))).all()
+    return {"parties": [_party_payload(session, p, device) for p in parties]}
+
+
+@app.post("/v1/parties", status_code=201)
+def create_party(
+    payload: dict,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    name = (payload.get("name") or "").strip()[:60] or "Meine Party"
+    party = Party(name=name, join_code=generate_join_code(session), created_by=device.id)
+    session.add(party)
+    session.flush()
+    session.add(PartyMember(party_id=party.id, device_id=device.id))
+    session.commit()
+    return _party_payload(session, party, device)
+
+
+@app.post("/v1/parties/join")
+def join_party(
+    payload: dict,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Beitritt per Code. Grossschreibung egal — den Code liest man sich vor."""
+    code = (payload.get("joinCode") or "").strip().upper()
+    party = session.scalar(select(Party).where(Party.join_code == code))
+    if party is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Party-Code unbekannt")
+
+    schon_dabei = session.scalar(
+        select(PartyMember).where(
+            PartyMember.party_id == party.id, PartyMember.device_id == device.id
+        )
+    )
+    if schon_dabei is None:
+        session.add(PartyMember(party_id=party.id, device_id=device.id))
+        session.commit()
+        # Wer später dazukommt, hat vielleicht schon passende Titel gewischt —
+        # rückwirkend prüfen, sonst fehlen Matches ohne ersichtlichen Grund.
+        backfill_matches_for_new_member(session, party, device)
+
+    return _party_payload(session, party, device)
+
+
+@app.post("/v1/parties/{party_id}/leave")
+def leave_party(
+    party_id: int,
+    device: Device = Depends(current_device),
+    session: Session = Depends(get_session),
+) -> dict:
+    session.query(PartyMember).filter(
+        PartyMember.party_id == party_id, PartyMember.device_id == device.id
+    ).delete()
+    session.commit()
+    return {"left": party_id}
 
 
 @app.post("/v1/swipes")

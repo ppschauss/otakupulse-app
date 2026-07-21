@@ -70,3 +70,24 @@ data class SwipeUploadResponse(val accepted: Int, val matches: List<MatchDto> = 
 
 @Serializable
 data class HealthResponse(val status: String)
+
+@Serializable
+data class PartyMemberDto(val id: Int, val displayName: String, val isMe: Boolean = false)
+
+@Serializable
+data class PartyDto(
+    val id: Int,
+    val name: String,
+    val joinCode: String,
+    val members: List<PartyMemberDto> = emptyList(),
+    val matches: List<AnimeDto> = emptyList(),
+)
+
+@Serializable
+data class PartiesResponse(val parties: List<PartyDto>)
+
+@Serializable
+data class CreatePartyRequest(val name: String)
+
+@Serializable
+data class JoinPartyRequest(val joinCode: String)

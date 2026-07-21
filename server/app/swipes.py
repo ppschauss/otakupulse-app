@@ -79,6 +79,51 @@ def _create_matches(session: Session, device: Device, anime_id: int) -> list[Mat
     return created
 
 
+def backfill_matches_for_new_member(session: Session, party: Party, device: Device) -> list[Match]:
+    """Legt Matches an, die durch einen späteren Beitritt fällig werden.
+
+    Der Neue hat oft schon Titel gewischt, die andere in der Party ebenfalls wollen.
+    Ohne diesen Nachtrag entstünden diese Matches nie — sie kämen erst zustande,
+    wenn jemand denselben Titel noch einmal wischt, was nicht passiert.
+    """
+    others = [
+        m for m in session.scalars(
+            select(PartyMember.device_id).where(PartyMember.party_id == party.id)
+        ) if m != device.id
+    ]
+    if not others:
+        return []
+
+    meine = set(
+        session.scalars(
+            select(Swipe.anime_id).where(
+                Swipe.device_id == device.id, Swipe.direction.in_(INTERESTED)
+            )
+        )
+    )
+    if not meine:
+        return []
+
+    ihre = set(
+        session.scalars(
+            select(Swipe.anime_id).where(
+                Swipe.device_id.in_(others),
+                Swipe.direction.in_(INTERESTED),
+                Swipe.anime_id.in_(meine),
+            )
+        )
+    )
+    vorhanden = set(
+        session.scalars(select(Match.anime_id).where(Match.party_id == party.id))
+    )
+
+    created = [Match(party_id=party.id, anime_id=a) for a in sorted(ihre - vorhanden)]
+    if created:
+        session.add_all(created)
+        session.commit()
+    return created
+
+
 def party_members_to_notify(session: Session, device: Device) -> list[Device]:
     """Alle Party-Mitglieder außer dem Absender — Empfänger eines Super-Swipes."""
     party_ids = list(

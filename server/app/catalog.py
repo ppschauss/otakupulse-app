@@ -56,3 +56,14 @@ def fetch_tags() -> list[dict]:
     )
     with catalog_engine.connect() as conn:
         return [dict(r._mapping) for r in conn.execute(text(sql))]
+
+
+def fetch_by_ids(ids: list[int]) -> list[dict]:
+    """Karten zu bekannten IDs — für Match-Listen, die sonst nur Zahlen zeigen würden."""
+    if not ids:
+        return []
+    sql = f"SELECT {SELECT_COLUMNS} FROM anime a WHERE a.id = ANY(:ids)"
+    with catalog_engine.connect() as conn:
+        rows = conn.execute(text(sql), {"ids": ids}).fetchall()
+    nach_id = {r._mapping["id"]: _card(r) for r in rows}
+    return [nach_id[i] for i in ids if i in nach_id]

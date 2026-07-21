@@ -39,6 +39,15 @@ interface CompanionApi {
     @POST("v1/swipes")
     suspend fun uploadSwipes(@Body body: SwipeUpload): SwipeUploadResponse
 
+    @GET("v1/parties")
+    suspend fun parties(): PartiesResponse
+
+    @POST("v1/parties")
+    suspend fun createParty(@Body body: CreatePartyRequest): PartyDto
+
+    @POST("v1/parties/join")
+    suspend fun joinParty(@Body body: JoinPartyRequest): PartyDto
+
     @GET("v1/filters")
     suspend fun filters(): FiltersResponse
 }

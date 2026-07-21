@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -34,6 +35,8 @@ import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.ui.detail.DetailScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
+import de.pattaku.otakupulse.app.ui.party.PartyScreen
+import de.pattaku.otakupulse.app.ui.party.PartyViewModel
 import de.pattaku.otakupulse.app.ui.settings.ServerScreen
 import de.pattaku.otakupulse.app.ui.settings.ServerViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
@@ -76,6 +79,7 @@ private data class Ziel(val label: String, val icon: ImageVector)
 private val ZIELE = listOf(
     Ziel("Entdecken", Icons.Default.Style),
     Ziel("Watchlist", Icons.Default.Bookmark),
+    Ziel("Party", Icons.Default.Groups),
     Ziel("Server", Icons.Default.Dns),
 )
 
@@ -114,6 +118,9 @@ private fun Root(container: AppContainer) {
                 1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
                 )
+                2 -> PartyScreen(
+                    viewModel = viewModel(factory = partyFactory(container)),
+                )
                 else -> ServerScreen(
                     viewModel = viewModel(factory = serverFactory(container)),
                 )
@@ -131,6 +138,12 @@ private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.F
             container.watchlistRepository,
             container.applicationContext,
         ) as T
+}
+
+private fun partyFactory(container: AppContainer) = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        PartyViewModel(container.api) as T
 }
 
 private fun serverFactory(container: AppContainer) = object : ViewModelProvider.Factory {
