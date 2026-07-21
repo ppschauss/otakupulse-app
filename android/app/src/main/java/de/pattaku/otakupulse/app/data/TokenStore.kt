@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 
-private val Context.dataStore by preferencesDataStore(name = "companion")
+// Ein gemeinsamer DataStore für Token und Einstellungen — zwei Instanzen auf derselben
+// Datei wären ein Laufzeitfehler.
+val Context.companionDataStore by preferencesDataStore(name = "companion")
 
 /**
  * Speichert das Geräte-Token. Es gibt bewusst keine Konten — dieses Token *ist* die Identität,
@@ -25,18 +27,18 @@ class TokenStore(private val context: Context) {
 
     suspend fun token(): String? {
         cached?.let { return it }
-        val stored = context.dataStore.data.first()[tokenKey]
+        val stored = context.companionDataStore.data.first()[tokenKey]
         cached = stored
         return stored
     }
 
     suspend fun save(token: String, displayName: String) {
         cached = token
-        context.dataStore.edit {
+        context.companionDataStore.edit {
             it[tokenKey] = token
             it[nameKey] = displayName
         }
     }
 
-    suspend fun displayName(): String? = context.dataStore.data.first()[nameKey]
+    suspend fun displayName(): String? = context.companionDataStore.data.first()[nameKey]
 }

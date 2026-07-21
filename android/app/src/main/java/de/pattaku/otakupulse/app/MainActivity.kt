@@ -1,6 +1,7 @@
 package de.pattaku.otakupulse.app
 
 import android.app.Application
+import kotlinx.coroutines.launch
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -32,6 +34,8 @@ import de.pattaku.otakupulse.app.domain.Anime
 import de.pattaku.otakupulse.app.ui.detail.DetailScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeScreen
 import de.pattaku.otakupulse.app.ui.swipe.SwipeViewModel
+import de.pattaku.otakupulse.app.ui.settings.ServerScreen
+import de.pattaku.otakupulse.app.ui.settings.ServerViewModel
 import de.pattaku.otakupulse.app.ui.theme.CompanionTheme
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistScreen
 import de.pattaku.otakupulse.app.ui.watchlist.WatchlistViewModel
@@ -43,6 +47,12 @@ class CompanionApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // Gespeicherte Serveradresse früh in den Zwischenspeicher holen — der
+        // Interceptor liest sie synchron und fiele sonst auf den Build-Standard zurück.
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            container.settingsStore.load()
+            container.tokenStore.token()
+        }
     }
 }
 
@@ -66,6 +76,7 @@ private data class Ziel(val label: String, val icon: ImageVector)
 private val ZIELE = listOf(
     Ziel("Entdecken", Icons.Default.Style),
     Ziel("Watchlist", Icons.Default.Bookmark),
+    Ziel("Server", Icons.Default.Dns),
 )
 
 @Composable
@@ -100,8 +111,11 @@ private fun Root(container: AppContainer) {
                     viewModel = viewModel(factory = swipeFactory(container)),
                     onOpenDetail = { detail = it },
                 )
-                else -> WatchlistScreen(
+                1 -> WatchlistScreen(
                     viewModel = viewModel(factory = watchlistFactory(container)),
+                )
+                else -> ServerScreen(
+                    viewModel = viewModel(factory = serverFactory(container)),
                 )
             }
         }
@@ -117,6 +131,12 @@ private fun swipeFactory(container: AppContainer) = object : ViewModelProvider.F
             container.watchlistRepository,
             container.applicationContext,
         ) as T
+}
+
+private fun serverFactory(container: AppContainer) = object : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        ServerViewModel(container.settingsStore, container.api) as T
 }
 
 private fun watchlistFactory(container: AppContainer) = object : ViewModelProvider.Factory {
